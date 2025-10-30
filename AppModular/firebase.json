@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "public": "C:\\Users\\fgrec\\Downloads\\AppModular",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

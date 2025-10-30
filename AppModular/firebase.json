@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "C:\\Users\\fgrec\\Downloads\\AppModular",
+    "public": "AppModular",
     "ignore": [
       "firebase.json",
       "**/.*",

@@ -180,7 +180,7 @@
                                         </div>
                                         <div class="flex justify-between items-center">
                                             <span class="font-semibold text-white">Remanente mes anterior</span>
-                                            <input type="text" inputmode="numeric" id="previousMonthSurplusInput" placeholder="Ingreso manual" class="bg-gray-800 border border-gray-600 text-white rounded-lg p-1 w-32 text-sm text-right">
+                                            <input type="text" inputmode="numeric" id="previousMonthSurplusInput" placeholder="Ingreso manual" class="bg-gray-800 border border-gray-600 text-white rounded-lg p-2 w-40">
                                         </div>
                                         <hr class="border-gray-700/50 my-1">
                                         <div class="flex justify-between items-center">
@@ -237,7 +237,7 @@
 										<div class="relative group">
 											<i class="fas fa-question-circle text-gray-400 cursor-pointer"></i>
 											<div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-3 w-72 border border-gray-600 z-10 top-6 left-0 shadow-lg">
-												<p>Compara los gastos del período seleccionado contra las transacciones guardadas del mes anterior. Para una comparación precisa, asegúrate de haber registrado los movimientos del mes pasado.</p>
+												<p>Compara los gastos del período seleccionado contra las transacciones guardadas del mes anterior. Para una comparación precisa, asegúrate de haber registrado los movimientos del mes p[...]
 											</div>
 										</div>
 									</div>
@@ -310,6 +310,7 @@
 										</div>
 									</div>
                                     
+    
                                     <!-- Conciliación Débito -->
                                     <div class="space-y-3 text-sm mb-6 border-b border-gray-700 pb-6">
                                         <h4 class="font-semibold text-indigo-300 mb-2">Cuenta de Débito</h4>
@@ -319,7 +320,7 @@
                                         </div>
                                         <div class="flex justify-between items-center">
                                             <label for="bankDebitBalanceInput" class="text-gray-400">Saldo en cartola (banco):</label>
-                                            <input type="text" inputmode="numeric" id="bankDebitBalanceInput" placeholder="Ingresa el monto" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-40 text-sm text-right">
+                                            <input type="text" inputmode="numeric" id="bankDebitBalanceInput" placeholder="Ingresa el monto" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-40">
                                         </div>
                                         <hr class="border-gray-600">
                                         <div id="reconciliationDebitDifference" class="flex justify-between items-center p-3 rounded-lg bg-gray-800 transition-colors duration-300">
@@ -337,7 +338,7 @@
                                         </div>
                                         <div class="flex justify-between items-center">
                                             <label for="bankCreditBalanceInput" class="text-gray-400">Cupo Disponible (según banco):</label>
-                                            <input type="text" inputmode="numeric" id="bankCreditBalanceInput" placeholder="Ingresa el monto" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-40 text-sm text-right">
+                                            <input type="text" inputmode="numeric" id="bankCreditBalanceInput" placeholder="Ingresa el monto" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-40">
                                         </div>
                                         <hr class="border-gray-600">
                                         <div id="reconciliationCreditDifference" class="flex justify-between items-center p-3 rounded-lg bg-gray-800 transition-colors duration-300">
@@ -357,7 +358,7 @@
                          <div class="card">
                             <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                                 <h2 class="text-xl font-bold text-white">Detalle de Movimientos</h2>
-                                <button id="addTransactionBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors duration-300 text-sm w-full sm:w-auto">
+                                <button id="addTransactionBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors duration-300">
                                     <i class="fas fa-plus"></i> Agregar Movimiento
                                 </button>
                             </div>
@@ -407,7 +408,7 @@
                                     <!-- Incomes will be rendered here by JS -->
                                 </div>
                                 <div class="mt-6 pt-6 border-t border-gray-700">
-                                     <button id="addFixedIncomeBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors duration-300 text-sm w-full sm-w-auto">
+                                     <button id="addFixedIncomeBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors duration-300">
                                        <i class="fas fa-plus"></i> Agregar Ingreso Fijo
                                     </button>
                                 </div>
@@ -454,7 +455,7 @@
                                      <div class="mt-6 pt-6 border-t border-gray-700">
                                         <h3 class="text-md font-semibold text-white mb-2">Crear Nueva Categoría de Gasto Variable</h3>
                                         <div class="flex gap-2">
-                                            <input type="text" id="newVariableCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
+                                            <input type="text" id="newVariableCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-l-lg p-2">
                                             <button id="addVariableCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
                                         </div>
                                     </div>
@@ -463,7 +464,7 @@
                            <div class="card">
                                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                                      <h2 class="text-xl font-bold text-white text-center sm:text-left">Créditos y Compras en Cuotas</h2>
-                                     <button id="addInstallmentBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors duration-300 text-sm w-full sm:w-auto">
+                                     <button id="addInstallmentBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors duration-300">
                                         <i class="fas fa-credit-card"></i> Agregar Compra
                                     </button>
                                 </div>
@@ -491,9 +492,9 @@
                         <h2 class="wallet-name-header text-xl font-semibold text-white mb-4"></h2>
                         <div class="card">
                             <h2 class="text-xl font-bold text-white mb-2">Análisis de Gastos con IA</h2>
-                            <p class="text-sm text-gray-400 mb-6">Obtén un análisis detallado de tus gastos del período seleccionado. La IA identificará gastos potencialmente innecesarios y te ofrecerá recomendaciones para optimizar tus finanzas.</p>
+                            <p class="text-sm text-gray-400 mb-6">Obtén un análisis detallado de tus gastos del período seleccionado. La IA identificará gastos potencialmente innecesarios y te ofr[...]
                             <div class="text-center">
-                                <button id="runAiAnalysisBtn" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-3 transition-colors duration-300 text-base w-full sm:w-auto mx-auto">
+                                <button id="runAiAnalysisBtn" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-3 transition-colors duration-300">
                                     <i class="fas fa-magic"></i> Analizar Mis Gastos
                                 </button>
                             </div>
@@ -504,7 +505,7 @@
                             <div id="aiAnalysisResult" class="mt-6 space-y-4">
                             </div>
                             <div id="aiAnalysisActions" class="mt-6 text-center hidden">
-                                <button id="downloadAiAnalysisBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors duration-300 text-sm w-full sm:w-auto mx-auto">
+                                <button id="downloadAiAnalysisBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors duration-300">
                                     <i class="fas fa-file-pdf"></i> Descargar PDF
                                 </button>
                             </div>
@@ -597,7 +598,7 @@
                         <div class="flex items-center gap-2">
                             <select id="category" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
                             </select>
-                            <button type="button" id="addCategoryBtn" title="Crear nueva categoría" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold p-2 rounded-lg h-full aspect-square flex items-center justify-center shrink-0">
+                            <button type="button" id="addCategoryBtn" title="Crear nueva categoría" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold p-2 rounded-lg h-full aspect-square">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
@@ -607,7 +608,7 @@
                     <label for="subcategory" class="block text-sm font-medium text-gray-300 mb-1">Subcategoría (Opcional)</label>
                     <div class="flex items-center gap-2">
                         <select id="subcategory" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2"></select>
-                        <button type="button" id="addSubcategoryBtn" title="Crear nueva subcategoría" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold p-2 rounded-lg h-full aspect-square flex items-center justify-center shrink-0">
+                        <button type="button" id="addSubcategoryBtn" title="Crear nueva subcategoría" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold p-2 rounded-lg h-full aspect-square">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>

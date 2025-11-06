@@ -88,7 +88,7 @@ export const renderAll = () => {
     [
         'previousMonthSurplusInput', 'bankDebitBalanceInput', 'bankCreditBalanceInput',
         'creditCardLimitInput', 'amount', 'fixedIncomeExpectedAmount', 'installmentTotalAmount',
-        'installmentTotal'
+        'installmentTotal', 'paymentAmount'
     ].forEach(id => {
         const input = $(id);
         if (input) formatNumberInput(input);
@@ -1112,7 +1112,7 @@ export const renderCategorySpending = () => {
 
 // --- Modal and Dropdown Functions ---
 
-export const displayConfirmationModal = (message) => {
+export const showConfirmationModal = (message) => {
     const msg = $('confirmationModalMessage');
     if (msg) msg.textContent = message;
     const modal = $('confirmationModal');
@@ -1128,7 +1128,7 @@ export const hideConfirmationModal = () => {
     modal.classList.remove('flex');
 };
 
-export const displayInputModal = (title, placeholder) => {
+export const showInputModal = (title, placeholder) => {
     const titleEl = $('inputModalTitle');
     const inputField = $('inputModalField');
     const modal = $('inputModal');
@@ -1580,7 +1580,7 @@ export const handleEditCategory = (oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || oldName === 'Ingresos' || oldName === '[Pago de Deuda]') return;
 
-    displayInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    showInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[newName]) {
@@ -1603,7 +1603,7 @@ export const handleEditSubcategory = (categoryName, oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || !wallet.transactionCategories?.[categoryName]) return;
 
-    displayInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    showInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[categoryName].includes(newName)) {

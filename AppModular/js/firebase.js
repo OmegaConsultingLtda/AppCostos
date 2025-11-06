@@ -40,23 +40,19 @@ export const setupFirebase = () => {
 
                 if (user) {
                     state.setUserId(user.uid);
-                    // Keep console.debug/info (not noisy) for debugging; comment/uncomment as needed
-                    // console.debug("Authenticated User ID:", state.userId);
-
-                    authScreen?.classList.add('hidden');
-                    appContainer?.classList.remove('hidden');
+                    // CRITICAL FIX: No mostramos el appContainer aquí. Esperaremos a que los datos carguen.
+                    // Esto previene la "condición de carrera" donde se ven los datos por defecto.
 
                     // Unsubscribe previous listener if present and set up a new one
                     if (typeof state.unsubscribeFromData === 'function') {
                         state.unsubscribeFromData();
                     } else if (state.unsubscribeFromData) {
-                        // If unsubscribe is a stored function reference, call it; otherwise clear value
                         try { state.unsubscribeFromData(); } catch (e) { /* ignore */ }
                     }
                     state.setIsInitialLoad(true);
                     listenToDataChanges();
                 } else {
-                    // console.debug("User is not signed in.");
+                    // Si no hay usuario, nos aseguramos de que se vea la pantalla de login.
                     authScreen?.classList.remove('hidden');
                     appContainer?.classList.add('hidden');
 
@@ -76,8 +72,6 @@ export const setupFirebase = () => {
     } catch (error) {
         // Do not expose raw error content to end users, keep logged for developer debugging.
         console.error("Firebase initialization failed:", error);
-        // Friendly message for users; avoid showing raw error objects.
-        // Consider replacing this with a UI banner in the future.
         try { alert("Error inicializando la aplicación. Comprueba la consola para más detalles."); } catch (e) { /* ignore if alert not available */ }
     }
 };
@@ -92,7 +86,7 @@ const listenToDataChanges = () => {
                 // Data loaded
                 loadAppData(docSnap.data());
             } else {
-                // No data for this user, initialize with defaults but DO NOT SAVE automatically
+                // No data for this user, initialize with defaults
                 loadAppData(state.defaultData, true);
             }
         } catch (err) {
@@ -100,16 +94,10 @@ const listenToDataChanges = () => {
         }
     }, (error) => {
         console.error("Error listening to Firestore:", error);
-        // Avoid repeated blocking alerts; use a single user-friendly message.
         try { alert("Error al cargar los datos desde la base de datos. Revisa la consola para detalles."); } catch (e) { /* ignore */ }
     });
 
-    // Store the unsubscribe function via setter for consistent state handling
-    if (typeof state.setUnsubscribeFromData === 'function') {
-        state.setUnsubscribeFromData(unsubscribe);
-    } else {
-        state.unsubscribeFromData = unsubscribe;
-    }
+    state.setUnsubscribeFromData(unsubscribe);
 };
 
 const loadAppData = (data = {}, isNewUser = false) => {
@@ -119,15 +107,20 @@ const loadAppData = (data = {}, isNewUser = false) => {
     state.setGeminiApiKey(data.geminiApiKey ?? '');
     state.setExchangeRates(data.exchangeRates ?? (state.defaultData.exchangeRates ?? { USD: 950, UF: 0, lastUpdated: null }));
     
-    // CRITICAL FIX: Removed automatic saving for new users to prevent data overwrite
-    // on environment mismatches or race conditions. Data will only be saved on explicit user action.
+    // Previous fix is maintained: No automatic saving for new users.
     // if (isNewUser) {
-    //     saveDataToFirestore(true); // <--- THIS LINE WAS DELETING THE DATA
+    //     saveDataToFirestore(true);
     // }
 
     if (state.isInitialLoad) {
         initializeAppUI();
         state.setIsInitialLoad(false);
+
+        // CRITICAL FIX: Ahora que los datos están cargados y la UI inicializada,
+        // cambiamos la visibilidad de las pantallas.
+        document.getElementById('authScreen')?.classList.add('hidden');
+        document.getElementById('appContainer')?.classList.remove('hidden');
+
     } else {
         renderAll();
     }
@@ -146,38 +139,25 @@ export const saveDataToFirestore = async (immediate = false) => {
     const saveAction = async () => {
         try {
             await setDoc(docRef, appData, { merge: true });
-            // console.debug("Data saved successfully to Firestore.");
         } catch (error) {
             console.error("Error saving data to Firestore:", error);
         }
     };
     
-    // Clear previous timeout safely
-    try {
-        if (typeof state.saveTimeout !== 'undefined' && state.saveTimeout !== null) {
-            clearTimeout(state.saveTimeout);
-        }
-    } catch (e) {
-        // ignore errors from clearTimeout
+    if (state.saveTimeout) {
+        clearTimeout(state.saveTimeout);
     }
 
     if (immediate) {
-        // Wait for the save to complete so callers can await this function if needed
         await saveAction();
     } else {
         const timeout = setTimeout(() => {
-            // fire-and-forget background save
-            saveAction().catch(() => { /* swallow to avoid unhandled rejections */ });
+            saveAction().catch(() => { /* ignore */ });
         }, 1000);
-        if (typeof state.setSaveTimeout === 'function') {
-            state.setSaveTimeout(timeout);
-        } else {
-            state.saveTimeout = timeout;
-        }
+        state.setSaveTimeout(timeout);
     }
 };
 
 export const updateDataInFirestore = async () => {
-    // Provide a promise so callers can wait for completion if desired
     await saveDataToFirestore(true);
 };

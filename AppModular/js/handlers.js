@@ -640,66 +640,6 @@ export function initializeEventListeners() {
         });
     }
     
-    // --- Credit Card Payment Modal ---
-    const registerCreditCardPaymentBtn = document.getElementById('registerCreditCardPaymentBtn');
-    const creditCardPaymentModal = document.getElementById('creditCardPaymentModal');
-    const closeCreditCardPaymentModalBtn = document.getElementById('closeCreditCardPaymentModalBtn');
-    const creditCardPaymentForm = document.getElementById('creditCardPaymentForm');
-
-    if (registerCreditCardPaymentBtn && creditCardPaymentModal) {
-        registerCreditCardPaymentBtn.addEventListener('click', () => {
-            if (creditCardPaymentForm) creditCardPaymentForm.reset();
-            const dateEl = document.getElementById('paymentDate');
-            if(dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
-            creditCardPaymentModal.classList.remove('hidden');
-            creditCardPaymentModal.classList.add('flex');
-        });
-    }
-
-    if (closeCreditCardPaymentModalBtn && creditCardPaymentModal) {
-        closeCreditCardPaymentModalBtn.addEventListener('click', () => {
-            creditCardPaymentModal.classList.add('hidden');
-        });
-    }
-
-    if (creditCardPaymentModal) {
-        creditCardPaymentModal.addEventListener('click', (e) => {
-            if (e.target === creditCardPaymentModal) {
-                creditCardPaymentModal.classList.add('hidden');
-            }
-        });
-    }
-
-    if (creditCardPaymentForm) {
-        creditCardPaymentForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const wallet = state.getCurrentWallet();
-            if (!wallet) return;
-
-            const paymentAmount = ui.getNumericValue(document.getElementById('paymentAmount').value);
-            const paymentDate = document.getElementById('paymentDate').value;
-
-            if (paymentAmount > 0 && paymentDate) {
-                const paymentTransaction = {
-                    id: Date.now(),
-                    description: "Pago Tarjeta de Crédito",
-                    amount: paymentAmount,
-                    date: paymentDate,
-                    type: 'expense_debit', // Money leaves the main account
-                    category: '[Pago de Deuda]', // Special category to not affect budgets
-                    subcategory: null
-                };
-                
-                if (!wallet.transactions) wallet.transactions = [];
-                wallet.transactions.push(paymentTransaction);
-
-                await updateDataInFirestore();
-                
-                if (creditCardPaymentModal) creditCardPaymentModal.classList.add('hidden');
-            }
-        });
-    }
-
     const confirmActionBtn = document.getElementById('confirmActionBtn');
     if (confirmActionBtn) {
         confirmActionBtn.addEventListener('click', () => {

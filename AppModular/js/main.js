@@ -1,8 +1,8 @@
 // main.js
 
+import * as state from './state.js';
 import { setupFirebase, saveDataToFirestore } from './firebase.js';
 import { initializeEventListeners } from './handlers.js';
-import * as state from './state.js';
 
 // --- App Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,3 +22,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+

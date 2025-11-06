@@ -1,18 +1,12 @@
 // ui.js
-// Hardened / defensive tweaks: safer DOM access, fewer noisy console errors, Chart and API guards.
 
 import * as state from './state.js';
 import { updateDataInFirestore, saveDataToFirestore } from './firebase.js';
 
-// --- Helpers ---
-const $ = (id) => document.getElementById(id);
-const safeSetText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
-const safeHtml = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
-
 // --- Utility Functions ---
 
 export const formatCurrency = (amount, currency = 'CLP') => {
-    if (typeof amount !== 'number') amount = Number(amount) || 0;
+    if (typeof amount !== 'number') amount = 0;
     if (currency === 'USD') {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
     }
@@ -30,31 +24,22 @@ export const formatNumberInput = (input) => {
 
     const handleInput = (e) => {
         const value = e.target.value;
-        const numericValue = (value || '').toString().replace(/[^\d]/g, '');
+        const numericValue = value.replace(/[^\d]/g, '');
         const formattedValue = format(numericValue);
         
         if (value !== formattedValue) {
             e.target.value = formattedValue;
         }
     };
-    // Avoid adding duplicate listeners by removing previous if present (best-effort)
-    try {
-        input.removeEventListener('input', handleInput);
-    } catch (e) { /* ignore */ }
     input.addEventListener('input', handleInput);
-    if (input.value) {
+    if(input.value) {
         input.value = format(input.value);
     }
 };
 
 export const getNumericValue = (value) => {
-    if (value == null) return 0;
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-        const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
-        return Number.isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
+    if (typeof value !== 'string') return value;
+    return parseFloat(value.replace(/[^\d]/g, '')) || 0;
 };
 
 export const formatYmdToDmy = (ymdString) => {
@@ -79,44 +64,34 @@ export const renderAll = () => {
     renderSettings();
     populateCategoryDropdown();
     populateCategoryFilterDropdown();
-
-    // Apply numeric formatting to known inputs (best-effort if they exist)
-    [
-        'previousMonthSurplusInput', 'bankDebitBalanceInput', 'bankCreditBalanceInput',
-        'creditCardLimitInput', 'amount', 'fixedIncomeExpectedAmount', 'installmentTotalAmount',
-        'installmentTotal'
-    ].forEach(id => {
-        const input = $(id);
+    ['previousMonthSurplusInput', 'bankDebitBalanceInput', 'bankCreditBalanceInput', 'creditCardLimitInput', 'amount', 'fixedIncomeExpectedAmount', 'installmentTotalAmount', 'installmentTotal', 'paymentAmount'].forEach(id => {
+        const input = document.getElementById(id);
         if (input) formatNumberInput(input);
     });
 };
 
 export const initializeAppUI = () => {
     if (!state.wallets) return;
-    fetchEconomicIndicators(true).catch(err => {
-        // Non-fatal: we already log inside fetchEconomicIndicators
-        console.warn('fetchEconomicIndicators failed during init:', err);
-    });
+    fetchEconomicIndicators(true);
     initializeDateSelectors();
     renderAll();
 };
 
 export const initializeDateSelectors = () => {
-    const monthSelector = $('monthSelector');
-    const yearSelector = $('yearSelector');
-    if (!monthSelector || !yearSelector) return;
+    const monthSelector = document.getElementById('monthSelector');
+    const yearSelector = document.getElementById('yearSelector');
 
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
     const updateMonthOptions = () => {
-        const selectedYearValue = parseInt(yearSelector.value) || currentYear;
+        const selectedYearValue = parseInt(yearSelector.value);
         const maxMonth = (selectedYearValue === currentYear) ? currentMonth : 11;
         const previouslySelectedMonth = parseInt(monthSelector.value);
         
         monthSelector.innerHTML = '';
-        const months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+        const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         
         months.forEach((month, index) => {
             if (index <= maxMonth) {
@@ -155,7 +130,7 @@ export const initializeDateSelectors = () => {
 // --- Component Rendering Functions ---
 
 export const renderTransactions = () => {
-    const tableBody = $('transactionsTable');
+    const tableBody = document.getElementById('transactionsTable');
     if (!tableBody) return;
     
     const getTypeBadge = (type) => {
@@ -168,15 +143,15 @@ export const renderTransactions = () => {
     const currentWallet = state.getCurrentWallet();
     if (!currentWallet) return;
     
-    let monthlyTransactions = (currentWallet.transactions || []).filter(t => {
-        const [year, month] = (t.date || '').split('-').map(Number);
-        return (month - 1) === state.selectedMonth && year === state.selectedYear;
+    let monthlyTransactions = currentWallet.transactions.filter(t => {
+        const [year, month] = t.date.split('-').map(Number);
+        return month - 1 === state.selectedMonth && year === state.selectedYear;
     });
 
     let filteredByType = monthlyTransactions.filter(tx => {
         if (state.currentFilter === 'all') return true;
         if (state.currentFilter === 'income') return tx.type === 'income';
-        if (state.currentFilter === 'expense') return tx.type && tx.type.startsWith('expense');
+        if (state.currentFilter === 'expense') return tx.type.startsWith('expense');
         return false;
     });
     
@@ -200,12 +175,10 @@ export const renderTransactions = () => {
 
     document.querySelectorAll('#transaction-table-header th[data-sort]').forEach(th => {
         const icon = th.querySelector('i');
-        if (icon) {
-            if (th.dataset.sort === state.sortColumn) {
-                icon.className = state.sortDirection === 'asc' ? 'fas fa-sort-up text-white' : 'fas fa-sort-down text-white';
-            } else {
-                icon.className = 'fas fa-sort text-gray-400';
-            }
+        if (th.dataset.sort === state.sortColumn) {
+            icon.className = state.sortDirection === 'asc' ? 'fas fa-sort-up text-white' : 'fas fa-sort-down text-white';
+        } else {
+            icon.className = 'fas fa-sort text-gray-400';
         }
     });
     
@@ -214,15 +187,15 @@ export const renderTransactions = () => {
         const row = document.createElement('tr');
         row.classList.add('table-row');
         row.innerHTML = `
-            <td class="p-3 font-medium text-white">${tx.description || ''}</td>
-            <td class="p-3 text-sm">${formatYmdToDmy(tx.date || '')}</td>
+            <td class="p-3 font-medium text-white">${tx.description}</td>
+            <td class="p-3 text-sm">${formatYmdToDmy(tx.date)}</td>
             <td class="p-3 hidden sm:table-cell">
-                 ${tx.category || ''}
+                 ${tx.category}
                 ${tx.subcategory ? `<span class="block text-xs text-gray-400">${tx.subcategory}</span>` : ''}
             </td>
             <td class="p-3 hidden md:table-cell">${getTypeBadge(tx.type)}</td>
             <td class="p-3 text-right font-semibold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}">
-                ${tx.type === 'income' ? '+' : '-'} ${formatCurrency(Number(tx.amount) || 0)}
+                ${tx.type === 'income' ? '+' : '-'} ${formatCurrency(tx.amount)}
             </td>
             <td class="p-3 text-center space-x-2">
                 <button class="edit-transaction-btn text-yellow-400 hover:text-yellow-300" data-id="${tx.id}"><i class="fas fa-pencil-alt"></i></button>
@@ -233,13 +206,12 @@ export const renderTransactions = () => {
     });
 
     const table = tableBody.parentElement;
-    if (!table) return;
     let tfoot = table.querySelector('tfoot');
     if (!tfoot) {
         tfoot = document.createElement('tfoot');
         table.appendChild(tfoot);
     }
-    const totalNeto = fullyFiltered.reduce((sum, tx) => tx.type === 'income' ? sum + (Number(tx.amount) || 0) : sum - (Number(tx.amount) || 0), 0);
+    const totalNeto = fullyFiltered.reduce((sum, tx) => tx.type === 'income' ? sum + tx.amount : sum - tx.amount, 0);
     tfoot.innerHTML = `
         <tr class="table-header font-bold">
             <td class="p-3" colspan="4">Total Neto</td>
@@ -250,7 +222,7 @@ export const renderTransactions = () => {
 };
 
 export const renderFixedIncomes = () => {
-    const listContainer = $('fixedIncomesList');
+    const listContainer = document.getElementById('fixedIncomesList');
     if (!listContainer) return;
 
     listContainer.innerHTML = '';
@@ -260,19 +232,19 @@ export const renderFixedIncomes = () => {
     let totalExpected = 0;
     
     currentWallet.fixedIncomes.forEach(income => {
-        totalExpected += Number(income.expectedAmount) || 0;
+        totalExpected += income.expectedAmount || 0;
         const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
         const paymentInfo = income.payments?.[periodKey] || {};
         const realAmount = paymentInfo.amount ?? '';
-        const isReceived = Boolean(paymentInfo.received);
+        const isReceived = paymentInfo.received || false;
         
         const item = document.createElement('div');
         item.className = 'p-4 border border-gray-700 rounded-lg bg-gray-800/50';
         item.innerHTML = `
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div class="flex-grow">
-                    <p class="font-bold text-white">${income.description || ''}</p>
-                    <p class="text-sm text-gray-400">Esperado: ${formatCurrency(Number(income.expectedAmount) || 0)}</p>
+                    <p class="font-bold text-white">${income.description}</p>
+                    <p class="text-sm text-gray-400">Esperado: ${formatCurrency(income.expectedAmount)}</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <button class="edit-fixed-income-btn text-yellow-400 hover:text-yellow-300" data-id="${income.id}"><i class="fas fa-pencil-alt"></i></button>
@@ -282,50 +254,49 @@ export const renderFixedIncomes = () => {
             <div class="mt-4 pt-4 border-t border-gray-600 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <label class="text-sm text-gray-400">Monto Real:</label>
-                    <input type="text" inputmode="numeric" data-id="${income.id}" value="${realAmount}" class="fixed-income-real-amount w-full sm:w-32 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-right">
+                    <input type="text" inputmode="numeric" data-id="${income.id}" value="${realAmount}" class="fixed-income-real-amount w-full sm:w-32 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-sm text-right" placeholder="Monto real">
                 </div>
                 <div class="flex items-center gap-3">
                     <label class="text-sm font-medium text-gray-300">Recibido:</label>
                     <div class="relative inline-block w-10 align-middle select-none">
-                        <input type="checkbox" data-id="${income.id}" class="fixed-income-received-toggle toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isReceived ? 'checked' : ''}>
+                        <input type="checkbox" data-id="${income.id}" class="fixed-income-received-toggle toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isReceived ? 'checked' : ''} ${realAmount === '' || realAmount <= 0 ? 'disabled' : ''}>
                         <label class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
                     </div>
                 </div>
             </div>
         `;
         listContainer.appendChild(item);
-        const numInput = item.querySelector('.fixed-income-real-amount');
-        if (numInput) formatNumberInput(numInput);
+        formatNumberInput(item.querySelector('.fixed-income-real-amount'));
     });
 
-    safeSetText('fixedIncomeTotal', formatCurrency(totalExpected));
+    document.getElementById('fixedIncomeTotal').textContent = formatCurrency(totalExpected);
 };
-
 export const renderInstallments = () => {
-    const tableBody = $('installmentsTable');
+    const tableBody = document.getElementById('installmentsTable');
     if (!tableBody) return;
     tableBody.innerHTML = '';
     const currentWallet = state.getCurrentWallet();
     if (!currentWallet || !currentWallet.installments) return;
     
     currentWallet.installments.forEach(item => {
-        const monthlyPayment = item.totalInstallments > 0 ? (Number(item.totalAmount) || 0) / item.totalInstallments : 0;
-        const remainingBalance = monthlyPayment * (item.totalInstallments - (item.paidInstallments || 0));
-        const isPaidOff = (item.paidInstallments || 0) >= item.totalInstallments;
+        const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+        const remainingBalance = monthlyPayment * (item.totalInstallments - item.paidInstallments);
+        const isPaidOff = item.paidInstallments >= item.totalInstallments;
         const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
+        const isPaidThisMonth = item.payments && item.payments[periodKey];
 
         const row = document.createElement('tr');
         row.classList.add('table-row');
         row.innerHTML = `
-            <td class="p-3 font-medium text-white">${item.description || ''}</td>
+            <td class="p-3 font-medium text-white">${item.description}</td>
             <td class="p-3 text-right text-orange-400 font-semibold">${formatCurrency(monthlyPayment)}</td>
             <td class="p-3 text-center">
-                <span class="font-semibold ${isPaidOff ? 'text-green-400' : 'text-white'}">${item.paidInstallments || 0}</span> / ${item.totalInstallments || 0}
+                <span class="font-semibold ${isPaidOff ? 'text-green-400' : 'text-white'}">${item.paidInstallments}</span> / ${item.totalInstallments}
             </td>
             <td class="p-3 text-right font-bold hidden sm:table-cell ${isPaidOff ? 'text-gray-500' : 'text-red-400'}">${formatCurrency(remainingBalance)}</td>
             <td class="p-3 text-center">
                  <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                    <input type="checkbox" data-id="${item.id}" class="payment-toggle-checkbox toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${item.payments?.[periodKey] ? 'checked' : ''}>
+                    <input type="checkbox" data-id="${item.id}" class="payment-toggle-checkbox toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isPaidThisMonth ? 'checked' : ''}/>
                     <label for="toggle-payment-${item.id}" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
                 </div>
             </td>
@@ -340,7 +311,6 @@ export const renderInstallments = () => {
     });
 
     const table = tableBody.parentElement;
-    if (!table) return;
     let tfoot = table.querySelector('tfoot');
     if (!tfoot) {
         tfoot = document.createElement('tfoot');
@@ -348,12 +318,12 @@ export const renderInstallments = () => {
     }
 
     const totalMonthlyPayment = currentWallet.installments.reduce((sum, item) => {
-        return sum + (item.totalInstallments > 0 ? (Number(item.totalAmount) || 0) / item.totalInstallments : 0);
+        return sum + (item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0);
     }, 0);
 
     const totalRemainingBalance = currentWallet.installments.reduce((sum, item) => {
-        const monthlyPayment = item.totalInstallments > 0 ? (Number(item.totalAmount) || 0) / item.totalInstallments : 0;
-        const remaining = monthlyPayment * (item.totalInstallments - (item.paidInstallments || 0));
+        const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+        const remaining = monthlyPayment * (item.totalInstallments - item.paidInstallments);
         return sum + remaining;
     }, 0);
 
@@ -367,18 +337,18 @@ export const renderInstallments = () => {
         </tr>
     `;
     
-    // NOTE: event listeners moved to handlers.js as previously discussed
+    // NOTA: La lógica de los botones (addEventListener) se moverá a handlers.js
+    // El código original que tenías aquí para los listeners ya no es necesario en este archivo.
 };
-
 export const renderBudgets = () => {
-    const recurrentBudgetList = $('recurrentBudgetList');
-    const variableBudgetList = $('variableBudgetList');
+    const recurrentBudgetList = document.getElementById('recurrentBudgetList');
+    const variableBudgetList = document.getElementById('variableBudgetList');
     if (!recurrentBudgetList || !variableBudgetList) return;
     
-    // --- Preserve open categories state ---
+    // --- Preservar estado del acordeón ---
     const openCategories = new Set();
     document.querySelectorAll('.category-toggle-btn i.rotate-180').forEach(icon => {
-        const targetId = icon.closest('.category-toggle-btn')?.dataset.target;
+        const targetId = icon.closest('.category-toggle-btn').dataset.target;
         if (targetId) openCategories.add(targetId);
     });
     
@@ -388,19 +358,19 @@ export const renderBudgets = () => {
     const wallet = state.getCurrentWallet();
     if (!wallet) return;
 
-    // --- Migration logic (conservative) ---
+    // --- Lógica de Migración de Datos (se mantiene por si acaso) ---
     if (!wallet.budgets) wallet.budgets = {};
     Object.values(wallet.budgets).forEach(budgetData => {
-        if (budgetData?.payments) {
+        if (budgetData.payments) {
             Object.keys(budgetData.payments).forEach(periodKey => {
                 const paymentValue = budgetData.payments[periodKey];
                 if (typeof paymentValue === 'number' || (paymentValue && typeof paymentValue.amount === 'undefined' && !Object.values(paymentValue).some(v => typeof v === 'object'))) {
                     if (budgetData.type === 'recurrent' && Object.keys(wallet.transactionCategories[Object.keys(wallet.budgets).find(k => wallet.budgets[k] === budgetData)] || {}).length > 0) {
-                        // preserve old structure if complex
+                        // No migrar si hay subcategorías y datos antiguos
                     } else {
                          budgetData.payments[periodKey] = {
                             amount: typeof paymentValue === 'number' ? paymentValue : (paymentValue.amount || 0),
-                            type: paymentValue?.type || 'expense_debit'
+                            type: paymentValue.type || 'expense_debit'
                         };
                     }
                 }
@@ -408,10 +378,10 @@ export const renderBudgets = () => {
         }
     });
 
-    Object.keys(wallet.transactionCategories || {}).forEach(category => {
+    Object.keys(wallet.transactionCategories).forEach(category => {
         if (category === 'Ingresos') return;
         const budgetValue = wallet.budgets[category];
-        if (typeof budgetValue === 'number' || budgetValue === undefined || (budgetValue && typeof budgetValue.type === 'undefined')) {
+        if (typeof budgetValue === 'number' || budgetValue === undefined || budgetValue.type === undefined) {
              const oldValue = (typeof budgetValue === 'number') ? budgetValue : (budgetValue?.total || 0);
             wallet.budgets[category] = {
                 total: oldValue,
@@ -422,9 +392,9 @@ export const renderBudgets = () => {
         }
     });
     
-    const monthlyTransactions = (wallet.transactions || []).filter(t => {
-        const [year, month] = (t.date || '').split('-').map(Number);
-        return (month - 1) === state.selectedMonth && year === state.selectedYear;
+    const monthlyTransactions = wallet.transactions.filter(t => {
+        const [year, month] = t.date.split('-').map(Number);
+        return month - 1 === state.selectedMonth && year === state.selectedYear;
     });
     
     let totalRecurrentBudget = 0;
@@ -433,7 +403,7 @@ export const renderBudgets = () => {
     let totalVariablePaid = 0;
 
     const createBudgetHTML = (category, index, spentAmount) => {
-        const budgetData = wallet.budgets[category] || { total: 0, subcategories: {}, type: 'variable', payments: {} };
+        const budgetData = wallet.budgets[category];
         if (!budgetData.payments) budgetData.payments = {};
         
         const subcategories = wallet.transactionCategories[category] || [];
@@ -461,25 +431,25 @@ export const renderBudgets = () => {
                 let subPaymentHTML = '';
                 if (budgetData.type === 'recurrent') {
                     const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
-                    const paidInfo = budgetData.payments?.[periodKey]?.[sub] || {};
-                    const paidAmount = paidInfo.amount || '';
-                    const paymentType = paidInfo.type || 'expense_debit';
+                    const paidInfo = budgetData.payments?.[periodKey]?.[sub];
+                    const paidAmount = paidInfo?.amount || '';
+                    const paymentType = paidInfo?.type || 'expense_debit';
                     const isPaid = paidAmount > 0;
                     subPaymentHTML = `
                         <div class="mt-3 pt-3 border-t border-gray-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                             <div class="flex items-center gap-3">
                                 <label class="text-xs font-medium text-gray-400">Pagado:</label>
                                 <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="paid-toggle-${category}-${sub.replace(/\s+/g, '-')}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isPaid ? 'checked' : ''}>
+                                    <input type="checkbox" id="paid-toggle-${category}-${sub.replace(/\s+/g, '-')}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isPaid ? 'checked' : ''} disabled>
                                     <label for="paid-toggle-${category}-${sub.replace(/\s+/g, '-')}" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-600"></label>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <select data-category="${category}" data-subcategory="${sub}" class="recurrent-payment-type-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs">
+                                <select data-category="${category}" data-subcategory="${sub}" class="recurrent-payment-type-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs w-24">
                                     <option value="expense_debit" ${paymentType === 'expense_debit' ? 'selected' : ''}>Débito</option>
                                     <option value="expense_credit" ${paymentType === 'expense_credit' ? 'selected' : ''}>Crédito</option>
                                 </select>
-                                <input type="text" inputmode="numeric" data-category="${category}" data-subcategory="${sub}" value="${paidAmount}" class="recurrent-paid-amount-input w-24 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-right">
+                                <input type="text" inputmode="numeric" data-category="${category}" data-subcategory="${sub}" value="${paidAmount}" class="recurrent-paid-amount-input w-24 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs text-right" placeholder="Monto">
                             </div>
                         </div>
                     `;
@@ -495,7 +465,7 @@ export const renderBudgets = () => {
                             </div>
                             <div class="flex items-center gap-2">
                                 <label class="text-xs text-gray-400">Presupuesto subcategoría</label>
-                                <input type="text" inputmode="numeric" value="${subBudgetValueForInput}" data-category="${category}" data-subcategory="${sub}" class="subcategory-budget-input bg-gray-700 border border-gray-600 text-white rounded-lg p-1 w-28 text-right">
+                                <input type="text" inputmode="numeric" value="${subBudgetValueForInput}" data-category="${category}" data-subcategory="${sub}" class="subcategory-budget-input bg-gray-800 border border-gray-700 text-white rounded-lg p-1 w-28 text-sm text-right">
                             </div>
                         </div>
                         ${subPaymentHTML}
@@ -515,30 +485,30 @@ export const renderBudgets = () => {
         let paymentHTML = '';
         if (budgetData.type === 'recurrent' && subcategories.length === 0) {
             const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
-            const paidInfo = budgetData.payments?.[periodKey] || {};
-            const paidAmount = paidInfo.amount || '';
-            const paymentType = paidInfo.type || 'expense_debit';
+            const paidInfo = budgetData.payments?.[periodKey];
+            const paidAmount = paidInfo?.amount || '';
+            const paymentType = paidInfo?.type || 'expense_debit';
             const isPaid = paidAmount > 0;
             paymentHTML = `
                 <div class="mt-4 pt-4 border-t border-gray-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
                         <label class="text-sm font-medium text-gray-300">Cuenta Pagada:</label>
                         <div class="relative inline-block w-10 align-middle select-none">
-                            <input type="checkbox" id="paid-toggle-${category}" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isPaid ? 'checked' : ''}>
+                            <input type="checkbox" id="paid-toggle-${category}" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isPaid ? 'checked' : ''} disabled>
                             <label for="paid-toggle-${category}" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600"></label>
                         </div>
                     </div>
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
                         <div class="flex items-center gap-2 w-full">
                             <label for="payment-type-${category}" class="text-sm text-gray-400 w-1/3 sm:w-auto">Método:</label>
-                            <select id="payment-type-${category}" data-category="${category}" class="recurrent-payment-type-select w-2/3 sm:w-auto bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs">
+                            <select id="payment-type-${category}" data-category="${category}" class="recurrent-payment-type-select w-2/3 sm:w-auto bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-sm">
                                 <option value="expense_debit" ${paymentType === 'expense_debit' ? 'selected' : ''}>Débito</option>
                                 <option value="expense_credit" ${paymentType === 'expense_credit' ? 'selected' : ''}>Crédito</option>
                             </select>
                         </div>
                         <div class="flex items-center gap-2 w-full">
                             <label for="paid-amount-${category}" class="text-sm text-gray-400 w-1/3 sm:w-auto">Monto Pagado:</label>
-                            <input type="text" inputmode="numeric" id="paid-amount-${category}" data-category="${category}" value="${paidAmount}" class="recurrent-paid-amount-input w-2/3 sm:w-28 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-right">
+                            <input type="text" inputmode="numeric" id="paid-amount-${category}" data-category="${category}" value="${paidAmount}" class="recurrent-paid-amount-input w-2/3 sm:w-28 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-sm text-right" placeholder="Monto Pagado">
                         </div>
                     </div>
                 </div>
@@ -576,7 +546,7 @@ export const renderBudgets = () => {
                  <div class="mt-4 pt-4 border-t border-gray-700">
                     <h4 class="text-sm font-semibold text-white mb-2">Agregar Subcategoría</h4>
                     <div class="flex gap-2">
-                        <input type="text" data-category-input="${category}" placeholder="Nombre de la subcategoría" class="new-subcategory-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-1">
+                        <input type="text" data-category-input="${category}" placeholder="Nombre de la subcategoría" class="new-subcategory-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm">
                         <button class="add-subcategory-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm" data-category="${category}">Agregar</button>
                     </div>
                 </div>
@@ -586,15 +556,15 @@ export const renderBudgets = () => {
         return budgetItem;
     };
 
-    Object.keys(wallet.transactionCategories || {}).sort((a,b) => a.localeCompare(b)).forEach((category, index) => {
+    Object.keys(wallet.transactionCategories).sort((a,b) => a.localeCompare(b)).forEach((category, index) => {
         if (category === 'Ingresos' || category === '[Pago de Deuda]') return;
         
         const budgetData = wallet.budgets[category];
         if (!budgetData) return;
         
         const spentAmount = monthlyTransactions
-            .filter(t => t.category === category && (t.type || '').startsWith('expense'))
-            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+            .filter(t => t.category === category && t.type.startsWith('expense'))
+            .reduce((sum, t) => sum + t.amount, 0);
 
         const budgetItem = createBudgetHTML(category, index, spentAmount);
 
@@ -610,23 +580,23 @@ export const renderBudgets = () => {
 
         const wrapperId = budgetItem.querySelector('[id^="sub-wrapper-"]')?.id;
         if (wrapperId && openCategories.has(wrapperId)) {
-            budgetItem.querySelector(`#${wrapperId}`)?.classList.remove('hidden');
+            budgetItem.querySelector(`#${wrapperId}`).classList.remove('hidden');
             const icon = budgetItem.querySelector('.category-toggle-btn i');
             if (icon) icon.classList.add('rotate-180');
         }
     });
     
-    safeSetText('recurrentBudgetTotal', formatCurrency(totalRecurrentBudget));
-    safeSetText('variableBudgetTotal', formatCurrency(totalVariableBudget));
-    safeSetText('recurrentPaidTotal', formatCurrency(totalRecurrentPaid));
-    safeSetText('variablePaidTotal', formatCurrency(totalVariablePaid));
+    document.getElementById('recurrentBudgetTotal').textContent = formatCurrency(totalRecurrentBudget);
+    document.getElementById('variableBudgetTotal').textContent = formatCurrency(totalVariableBudget);
+    document.getElementById('recurrentPaidTotal').textContent = formatCurrency(totalRecurrentPaid);
+    document.getElementById('variablePaidTotal').textContent = formatCurrency(totalVariablePaid);
 
-    // Event listeners for inputs moved to handlers.js (keeps ui focused on rendering)
+    // Los event listeners para los inputs se manejarán en handlers.js
 };
 
 export const renderWalletSelector = () => {
-    const walletSelector = $('walletSelector');
-    if (!walletSelector || !Array.isArray(state.wallets)) return;
+    const walletSelector = document.getElementById('walletSelector');
+    if (!walletSelector) return;
     walletSelector.innerHTML = '';
     
     state.wallets.forEach(wallet => {
@@ -644,12 +614,10 @@ export const renderSettings = () => {
     const wallet = state.getCurrentWallet();
     if (!wallet) return;
     
-    const creditEl = $('creditCardLimitInput');
-    if (creditEl) creditEl.value = wallet.creditCardLimit || '';
-    const geminiEl = $('geminiApiKeyInput');
-    if (geminiEl) geminiEl.value = state.geminiApiKey || '';
+    document.getElementById('creditCardLimitInput').value = wallet.creditCardLimit || '';
+    document.getElementById('geminiApiKeyInput').value = state.geminiApiKey || '';
 
-    const walletList = $('walletList');
+    const walletList = document.getElementById('walletList');
     if (walletList) {
         walletList.innerHTML = '';
         state.wallets.forEach(w => {
@@ -659,7 +627,7 @@ export const renderSettings = () => {
                 <span class="text-white wallet-name cursor-pointer" data-wallet-id="${w.id}">${w.name}</span>
                 <div class="flex items-center gap-3">
                     <button class="edit-wallet-btn text-yellow-400 hover:text-yellow-300" data-wallet-id="${w.id}"><i class="fas fa-pencil-alt"></i></button>
-                    <button class="delete-wallet-btn text-red-500 hover:text-red-400 ${state.wallets.length <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" data-wallet-id="${w.id}">
+                    <button class="delete-wallet-btn text-red-500 hover:text-red-400 ${state.wallets.length <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" data-wallet-id="${w.id}" ${state.wallets.length <= 1 ? 'disabled' : ''}>
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -673,37 +641,37 @@ export const updateDashboard = () => {
     const wallet = state.getCurrentWallet();
     if (!wallet) return;
 
-    // --- Previous Month Surplus ---
-    const surplusInput = $('previousMonthSurplusInput');
+    // --- Remanente Mes Anterior ---
+    const surplusInput = document.getElementById('previousMonthSurplusInput');
     const surplusKey = `${state.selectedYear}-${state.selectedMonth}`;
-    if (surplusInput) {
-        if (wallet.manualSurplus && wallet.manualSurplus[surplusKey] !== undefined) {
-            surplusInput.value = wallet.manualSurplus[surplusKey];
-        } else {
-            surplusInput.value = '';
-        }
+    if (wallet.manualSurplus && wallet.manualSurplus[surplusKey] !== undefined) {
+        surplusInput.value = wallet.manualSurplus[surplusKey];
+    } else {
+        surplusInput.value = '';
     }
-    const cumulativeSurplus = getNumericValue(surplusInput?.value);
+    const cumulativeSurplus = getNumericValue(surplusInput.value);
 
-    // --- Transactions calculations ---
-    const monthlyTransactions = (wallet.transactions || []).filter(t => {
-        const [year, month] = (t.date || '').split('-').map(Number);
-        return (month - 1) === state.selectedMonth && year === state.selectedYear;
+    // --- Cálculos de Transacciones ---
+    const monthlyTransactions = wallet.transactions.filter(t => {
+        const [year, month] = t.date.split('-').map(Number);
+        return month - 1 === state.selectedMonth && year === state.selectedYear;
     });
     
-    const totalMonthlyIncomeValue = monthlyTransactions.filter(t => (t.type || '') === 'income').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const totalMonthlyIncomeValue = monthlyTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
         
-    const monthlyVariableExpenses = monthlyTransactions.filter(t => (t.type || '').startsWith('expense')).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const monthlyDebitExpenses = monthlyTransactions.filter(t => (t.type || '') === 'expense_debit').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const monthlyCreditExpenses = monthlyTransactions.filter(t => (t.type || '') === 'expense_credit').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const monthlyVariableExpenses = monthlyTransactions.filter(t => t.type.startsWith('expense')).reduce((sum, t) => sum + t.amount, 0);
+    const monthlyDebitExpenses = monthlyTransactions.filter(t => t.type === 'expense_debit').reduce((sum, t) => sum + t.amount, 0);
+    const monthlyCreditExpenses = monthlyTransactions.filter(t => t.type === 'expense_credit').reduce((sum, t) => sum + t.amount, 0);
     
-    // --- Pending recurrent budgets ---
+    // --- Cálculo de Gastos Recurrentes Pendientes ---
     let pendingRecurrentBudgetsAmount = 0;
     let pendingRecurrentBudgetsCount = 0;
 
     if (wallet.budgets) {
         Object.entries(wallet.budgets).forEach(([category, budgetData]) => {
-            if (budgetData?.type === 'recurrent') {
+            if (budgetData.type === 'recurrent') {
                 const subcategories = wallet.transactionCategories[category] || [];
                 if (subcategories.length === 0) {
                     const isPaid = monthlyTransactions.some(tx => tx.isRecurrentPayment && tx.category === category && !tx.subcategory);
@@ -730,132 +698,117 @@ export const updateDashboard = () => {
         });
     }
     
-    // --- Cash flow logic ---
-    const totalIncome = totalMonthlyIncomeValue + (cumulativeSurplus || 0);
+    // --- Lógica de Flujo de Caja ---
+    const totalIncome = totalMonthlyIncomeValue + cumulativeSurplus;
     const flujoDeCaja = totalIncome - monthlyVariableExpenses;
     
-    const flowDetailDebitEl = $('flowDetailDebit');
-    if (flowDetailDebitEl) flowDetailDebitEl.innerHTML = `<span class="text-red-400">- </span>${formatCurrency(monthlyDebitExpenses)}`;
-    const flowDetailCreditEl = $('flowDetailCredit');
-    if (flowDetailCreditEl) flowDetailCreditEl.innerHTML = `<span class="text-red-400">- </span>${formatCurrency(monthlyCreditExpenses)}`;
-    const flowDetailTotalExpensesEl = $('flowDetailTotalExpenses');
-    if (flowDetailTotalExpensesEl) flowDetailTotalExpensesEl.textContent = `- ${formatCurrency(monthlyVariableExpenses)}`;
-    const flowDetailIncomeEl = $('flowDetailIncome');
-    if (flowDetailIncomeEl) flowDetailIncomeEl.innerHTML = `<span class="text-green-400 font-bold mr-1">+</span>${formatCurrency(totalMonthlyIncomeValue)}`;
-    const flowDetailTotalIncomeEl = $('flowDetailTotalIncome');
-    if (flowDetailTotalIncomeEl) flowDetailTotalIncomeEl.textContent = formatCurrency(totalIncome);
+    document.getElementById('flowDetailDebit').innerHTML = `<span class="text-red-400">- </span>${formatCurrency(monthlyDebitExpenses)}`;
+    document.getElementById('flowDetailCredit').innerHTML = `<span class="text-red-400">- </span>${formatCurrency(monthlyCreditExpenses)}`;
+    document.getElementById('flowDetailTotalExpenses').textContent = `- ${formatCurrency(monthlyVariableExpenses)}`;
+    document.getElementById('flowDetailIncome').innerHTML = `<span class="text-green-400 font-bold mr-1">+</span>${formatCurrency(totalMonthlyIncomeValue)}`;
+    document.getElementById('flowDetailTotalIncome').textContent = formatCurrency(totalIncome);
     
-    const flujoDeCajaEl = $('flowDetailCashFlow');
-    if (flujoDeCajaEl) {
-        flujoDeCajaEl.textContent = `${flujoDeCaja >= 0 ? '+' : '-'} ${formatCurrency(Math.abs(flujoDeCaja))}`;
-        flujoDeCajaEl.classList.toggle('text-green-400', flujoDeCaja >= 0);
-        flujoDeCajaEl.classList.toggle('text-red-400', flujoDeCaja < 0);
-    }
+    const flujoDeCajaEl = document.getElementById('flowDetailCashFlow');
+    flujoDeCajaEl.textContent = `${flujoDeCaja >= 0 ? '+' : '-'} ${formatCurrency(Math.abs(flujoDeCaja))}`;
+    flujoDeCajaEl.classList.toggle('text-green-400', flujoDeCaja >= 0);
+    flujoDeCajaEl.classList.toggle('text-red-400', flujoDeCaja < 0);
     
-    const projectedNextMonthIncome = (wallet.fixedIncomes || []).reduce((sum, income) => sum + (Number(income.expectedAmount) || 0), 0);
-    const projectedNextMonthInstallments = (wallet.installments || [])
-        .filter(item => (item.paidInstallments || 0) < (item.totalInstallments || 0))
-        .reduce((sum, item) => sum + ((item.totalInstallments > 0) ? ((Number(item.totalAmount) || 0) / item.totalInstallments) : 0), 0);
-    const totalProjectedBudgets = Object.values(wallet.budgets || {}).reduce((sum, budget) => sum + (budget.total || 0), 0);
+    const projectedNextMonthIncome = wallet.fixedIncomes.reduce((sum, income) => sum + income.expectedAmount, 0);
+    const projectedNextMonthInstallments = wallet.installments
+        .filter(item => item.paidInstallments < item.totalInstallments)
+        .reduce((sum, item) => sum + (item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0), 0);
+    const totalProjectedBudgets = Object.values(wallet.budgets).reduce((sum, budget) => sum + (budget.total || 0), 0);
     const totalProjectedExpenses = projectedNextMonthInstallments + totalProjectedBudgets;
     const projectedNextMonthNet = projectedNextMonthIncome - totalProjectedExpenses;
     const bufferForNextMonth = Math.max(0, -projectedNextMonthNet);
     const disponibleParaGastar = flujoDeCaja - bufferForNextMonth;
 
-    const flowDetailNextMonthCoverEl = $('flowDetailNextMonthCover');
-    if (flowDetailNextMonthCoverEl) flowDetailNextMonthCoverEl.innerHTML = `<span class="text-red-400">- </span>${formatCurrency(bufferForNextMonth)}`;
+    document.getElementById('flowDetailNextMonthCover').innerHTML = `<span class="text-red-400">- </span>${formatCurrency(bufferForNextMonth)}`;
     
-    const disponibleParaGastarEl = $('flowDetailAvailableToSpend');
-    if (disponibleParaGastarEl) {
-        disponibleParaGastarEl.textContent = `${disponibleParaGastar >= 0 ? '+' : '-'} ${formatCurrency(Math.abs(disponibleParaGastar))}`;
-        disponibleParaGastarEl.classList.remove('text-white', 'text-green-400', 'text-red-400');
-        disponibleParaGastarEl.classList.add(disponibleParaGastar >= 0 ? 'text-green-400' : 'text-red-400');
-    }
+    const disponibleParaGastarEl = document.getElementById('flowDetailAvailableToSpend');
+    disponibleParaGastarEl.textContent = `${disponibleParaGastar >= 0 ? '+' : '-'} ${formatCurrency(Math.abs(disponibleParaGastar))}`;
+    disponibleParaGastarEl.classList.remove('text-white', 'text-green-400', 'text-red-400');
+    disponibleParaGastarEl.classList.add(disponibleParaGastar >= 0 ? 'text-green-400' : 'text-red-400');
 
-    safeSetText('pendingExpensesCount', String(pendingRecurrentBudgetsCount));
-    safeSetText('pendingExpensesAmount', formatCurrency(pendingRecurrentBudgetsAmount));
+    // --- Tarjetas de Resumen (Gastos y Cuotas Pendientes) ---
+    document.getElementById('pendingExpensesCount').textContent = pendingRecurrentBudgetsCount;
+    document.getElementById('pendingExpensesAmount').textContent = formatCurrency(pendingRecurrentBudgetsAmount);
     
     const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
-    const pendingInstallmentsThisMonth = (wallet.installments || []).filter(item => {
-        const isNotPaidOff = (item.paidInstallments || 0) < (item.totalInstallments || 0);
+    const pendingInstallmentsThisMonth = wallet.installments.filter(item => {
+        const isNotPaidOff = item.paidInstallments < item.totalInstallments;
         const isNotPaidThisMonth = !(item.payments && item.payments[periodKey]);
         return isNotPaidOff && isNotPaidThisMonth;
     });
     const pendingInstallmentsCount = pendingInstallmentsThisMonth.length;
     const pendingInstallmentsAmount = pendingInstallmentsThisMonth.reduce((sum, item) => {
-        const monthlyPayment = item.totalInstallments > 0 ? ((Number(item.totalAmount) || 0) / item.totalInstallments) : 0;
+        const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
         return sum + monthlyPayment;
     }, 0);
 
-    safeSetText('pendingInstallmentsCount', String(pendingInstallmentsCount));
-    safeSetText('pendingInstallmentsAmount', formatCurrency(pendingInstallmentsAmount));
+    document.getElementById('pendingInstallmentsCount').textContent = pendingInstallmentsCount;
+    document.getElementById('pendingInstallmentsAmount').textContent = formatCurrency(pendingInstallmentsAmount);
 
-    // --- Credit card logic ---
-    const creditCardInstallmentDebt = (wallet.installments || [])
+    // --- Lógica de Tarjeta de Crédito ---
+    const creditCardInstallmentDebt = wallet.installments
         .filter(i => i.type === 'credit_card')
         .reduce((sum, item) => {
-            const monthlyPayment = item.totalInstallments > 0 ? ((Number(item.totalAmount) || 0) / item.totalInstallments) : 0;
-            return sum + (monthlyPayment * ((item.totalInstallments || 0) - (item.paidInstallments || 0)));
+            const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+            return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
     }, 0);
 
-    const realCreditLimit = (wallet.creditCardLimit || 0) - creditCardInstallmentDebt;
-    const creditCardLimitInfoEl = $('creditCardLimitInfo');
-    if (creditCardLimitInfoEl) creditCardLimitInfoEl.innerHTML = `<span class="text-green-400">${formatCurrency(realCreditLimit)}</span> / ${formatCurrency(wallet.creditCardLimit || 0)}`;
+    const realCreditLimit = wallet.creditCardLimit - creditCardInstallmentDebt;
+    document.getElementById('creditCardLimitInfo').innerHTML = `<span class="text-green-400">${formatCurrency(realCreditLimit)}</span> / ${formatCurrency(wallet.creditCardLimit)}`;
     
     const availableCreditAfterUsage = realCreditLimit - monthlyCreditExpenses;
-    safeSetText('usedCredit', formatCurrency(monthlyCreditExpenses));
-    safeSetText('availableCredit', formatCurrency(availableCreditAfterUsage));
+    document.getElementById('usedCredit').textContent = formatCurrency(monthlyCreditExpenses);
+    document.getElementById('availableCredit').textContent = formatCurrency(availableCreditAfterUsage);
 
-    // --- Reconciliation ---
+    // --- Lógica de Conciliación Bancaria ---
     const appDebitBalance = totalIncome - monthlyDebitExpenses;
-    safeSetText('reconciliationAppDebitBalance', formatCurrency(appDebitBalance));
+    document.getElementById('reconciliationAppDebitBalance').textContent = formatCurrency(appDebitBalance);
     
-    const bankDebitBalanceInput = $('bankDebitBalanceInput');
-    if (bankDebitBalanceInput) bankDebitBalanceInput.value = (wallet.bankDebitBalance || 0) ? new Intl.NumberFormat('es-CL').format(wallet.bankDebitBalance) : '';
+    const bankDebitBalanceInput = document.getElementById('bankDebitBalanceInput');
+    bankDebitBalanceInput.value = wallet.bankDebitBalance ? new Intl.NumberFormat('es-CL').format(wallet.bankDebitBalance) : '';
     const debitDifference = appDebitBalance - (wallet.bankDebitBalance || 0);
 
-    const debitDiffContainer = $('reconciliationDebitDifference');
-    const debitDiffAmountEl = $('differenceDebitAmount');
-    if (debitDiffAmountEl) debitDiffAmountEl.textContent = formatCurrency(debitDifference);
+    const debitDiffContainer = document.getElementById('reconciliationDebitDifference');
+    const debitDiffAmountEl = document.getElementById('differenceDebitAmount');
+    debitDiffAmountEl.textContent = formatCurrency(debitDifference);
     
-    if (debitDiffContainer && debitDiffAmountEl) {
-        if (Math.abs(debitDifference) < 1 && (wallet.bankDebitBalance || 0) !== 0) {
-            debitDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-green-500/20';
-            debitDiffAmountEl.className = 'font-bold text-lg text-green-400';
-        } else if (debitDifference !== 0) {
-            debitDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-red-500/20';
-            debitDiffAmountEl.className = 'font-bold text-lg text-red-400';
-        } else {
-            debitDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-gray-800';
-            debitDiffAmountEl.className = 'font-bold text-lg';
-        }
+    if (Math.abs(debitDifference) < 1 && (wallet.bankDebitBalance || 0) !== 0) {
+        debitDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-green-500/20';
+        debitDiffAmountEl.className = 'font-bold text-lg text-green-400';
+    } else if (debitDifference !== 0) {
+        debitDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-red-500/20';
+        debitDiffAmountEl.className = 'font-bold text-lg text-red-400';
+    } else {
+        debitDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-gray-800';
+        debitDiffAmountEl.className = 'font-bold text-lg';
     }
 
-    safeSetText('reconciliationAppCreditBalance', formatCurrency(availableCreditAfterUsage));
-    const bankCreditBalanceInputEl = $('bankCreditBalanceInput');
-    if (bankCreditBalanceInputEl) bankCreditBalanceInputEl.value = (wallet.bankCreditBalance || 0) ? new Intl.NumberFormat('es-CL').format(wallet.bankCreditBalance) : '';
+    document.getElementById('reconciliationAppCreditBalance').textContent = formatCurrency(availableCreditAfterUsage);
+    const bankCreditBalanceInput = document.getElementById('bankCreditBalanceInput');
+    bankCreditBalanceInput.value = wallet.bankCreditBalance ? new Intl.NumberFormat('es-CL').format(wallet.bankCreditBalance) : '';
     const creditDifference = availableCreditAfterUsage - (wallet.bankCreditBalance || 0);
 
-    const creditDiffContainer = $('reconciliationCreditDifference');
-    const creditDiffAmountEl = $('differenceCreditAmount');
-    if (creditDiffAmountEl) creditDiffAmountEl.textContent = formatCurrency(creditDifference);
+    const creditDiffContainer = document.getElementById('reconciliationCreditDifference');
+    const creditDiffAmountEl = document.getElementById('differenceCreditAmount');
+    creditDiffAmountEl.textContent = formatCurrency(creditDifference);
 
-    if (creditDiffContainer && creditDiffAmountEl) {
-        if (Math.abs(creditDifference) < 1 && (wallet.bankCreditBalance || 0) !== 0) {
-            creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-green-500/20';
-            creditDiffAmountEl.className = 'font-bold text-lg text-green-400';
-        } else if (creditDifference !== 0) {
-            creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-red-500/20';
-            creditDiffAmountEl.className = 'font-bold text-lg text-red-400';
-        } else {
-            creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-gray-800';
-            creditDiffAmountEl.className = 'font-bold text-lg';
-        }
+    if (Math.abs(creditDifference) < 1 && (wallet.bankCreditBalance || 0) !== 0) {
+        creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-green-500/20';
+        creditDiffAmountEl.className = 'font-bold text-lg text-green-400';
+    } else if (creditDifference !== 0) {
+        creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-red-500/20';
+        creditDiffAmountEl.className = 'font-bold text-lg text-red-400';
+    } else {
+        creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-gray-800';
+        creditDiffAmountEl.className = 'font-bold text-lg';
     }
 
-    // --- Monthly comparison ---
-    const comparisonContainer = $('monthlyComparisonContainer');
-    if (!comparisonContainer) return;
+    // --- Lógica de Comparación Mensual ---
+    const comparisonContainer = document.getElementById('monthlyComparisonContainer');
     comparisonContainer.innerHTML = ''; 
     const budgetedCategories = Object.keys(wallet.budgets || {});
 
@@ -863,15 +816,15 @@ export const updateDashboard = () => {
         comparisonContainer.innerHTML = `<p class="text-sm text-gray-400">No hay presupuestos definidos para comparar.</p>`;
     } else {
         const calculateTotals = (txs) => {
-            return (txs || []).filter(t => (t.type || '').startsWith('expense')).reduce((acc, tx) => {
+            return txs.filter(t => t.type.startsWith('expense')).reduce((acc, tx) => {
                 if (!acc[tx.category]) acc[tx.category] = 0;
-                acc[tx.category] += (Number(tx.amount) || 0);
+                acc[tx.category] += tx.amount;
                 return acc;
             }, {});
         };
         
         const currentMonthTotals = calculateTotals(monthlyTransactions);
-        const previousMonthTotals = calculateTotals(wallet.previousMonthTransactions || []);
+        const previousMonthTotals = calculateTotals(wallet.previousMonthTransactions);
 
         budgetedCategories.sort().forEach(category => {
             const currentAmount = currentMonthTotals[category] || 0;
@@ -921,49 +874,33 @@ export const updateDashboard = () => {
         });
     }
 };
-
 export const renderCategorySpending = () => {
-    const chartContainer = $('chartContainer');
-    const transactionListContainer = $('categoryTransactionList');
-    const chartEl = $('categoryPieChart');
-    if (!chartEl) return;
-    const ctx = chartEl.getContext ? chartEl.getContext('2d') : null;
+    const chartContainer = document.getElementById('chartContainer');
+    const transactionListContainer = document.getElementById('categoryTransactionList');
+    const ctx = document.getElementById('categoryPieChart').getContext('2d');
     const currentWallet = state.getCurrentWallet();
     if (!currentWallet) return;
 
-    const chartTitleEl = $('categoryChartTitle');
-    const backBtn = $('backToCategoriesBtn');
+    const chartTitleEl = document.getElementById('categoryChartTitle');
+    const backBtn = document.getElementById('backToCategoriesBtn');
 
-    const monthlyTransactions = (currentWallet.transactions || []).filter(t => {
-        const [year, month] = (t.date || '').split('-').map(Number);
-        return (month - 1) === state.selectedMonth && year === state.selectedYear;
+    const monthlyTransactions = currentWallet.transactions.filter(t => {
+        const [year, month] = t.date.split('-').map(Number);
+        return month - 1 === state.selectedMonth && year === state.selectedYear;
     });
     
     const expenses = monthlyTransactions
-        .filter(t => (t.type || '').startsWith('expense') && t.category !== '[Pago de Deuda]');
+        .filter(t => t.type.startsWith('expense') && t.category !== '[Pago de Deuda]');
     
-    // Destroy previous chart safely
-    try {
-        if (state.categoryChart && typeof state.categoryChart.destroy === 'function') {
-            state.categoryChart.destroy();
-        }
-    } catch (e) {
-        // ignore chart destroy errors
-    }
-
-    // If Chart library not available, skip chart rendering
-    if (typeof Chart === 'undefined' || !ctx) {
-        if (chartContainer) chartContainer.classList.add('hidden');
-        if (transactionListContainer) transactionListContainer.classList.remove('hidden');
-        if (backBtn) backBtn.classList.add('hidden');
-        return;
+    if (state.categoryChart) {
+        state.categoryChart.destroy();
     }
 
     if (state.currentChartView === 'transactions') {
-        if (chartContainer) chartContainer.classList.add('hidden');
-        if (transactionListContainer) transactionListContainer.classList.remove('hidden');
-        if (backBtn) backBtn.classList.remove('hidden');
-        if (chartTitleEl) chartTitleEl.textContent = `Movimientos en: ${state.selectedSubcategoryForDrilldown || ''}`;
+        chartContainer.classList.add('hidden');
+        transactionListContainer.classList.remove('hidden');
+        backBtn.classList.remove('hidden');
+        chartTitleEl.textContent = `Movimientos en: ${state.selectedSubcategoryForDrilldown}`;
 
         const filteredTx = expenses.filter(t => 
             t.category === state.selectedCategoryForDrilldown && 
@@ -976,10 +913,10 @@ export const renderCategorySpending = () => {
                 listHTML += `
                     <div class="flex justify-between items-center text-sm p-2 rounded-lg bg-gray-800/50">
                         <div>
-                            <p class="font-medium text-white">${tx.description || ''}</p>
-                            <p class="text-xs text-gray-400">${formatYmdToDmy(tx.date || '')}</p>
+                            <p class="font-medium text-white">${tx.description}</p>
+                            <p class="text-xs text-gray-400">${formatYmdToDmy(tx.date)}</p>
                         </div>
-                        <p class="font-semibold text-red-400">${formatCurrency(Number(tx.amount) || 0)}</p>
+                        <p class="font-semibold text-red-400">${formatCurrency(tx.amount)}</p>
                     </div>
                 `;
             });
@@ -991,22 +928,22 @@ export const renderCategorySpending = () => {
         return;
     }
 
-    if (chartContainer) chartContainer.classList.remove('hidden');
-    if (transactionListContainer) transactionListContainer.classList.add('hidden');
+    chartContainer.classList.remove('hidden');
+    transactionListContainer.classList.add('hidden');
     
     let labels = [];
     let data = [];
     
     if (state.currentChartView === 'subcategories' && state.selectedCategoryForDrilldown) {
-        if (chartTitleEl) chartTitleEl.textContent = `Desglose de: ${state.selectedCategoryForDrilldown}`;
-        if (backBtn) backBtn.classList.remove('hidden');
+        chartTitleEl.textContent = `Desglose de: ${state.selectedCategoryForDrilldown}`;
+        backBtn.classList.remove('hidden');
 
         const subcategoryExpenses = expenses
             .filter(t => t.category === state.selectedCategoryForDrilldown)
             .reduce((acc, tx) => {
                 const sub = tx.subcategory || 'Sin Subcategoría';
                 if (!acc[sub]) acc[sub] = 0;
-                acc[sub] += Number(tx.amount) || 0;
+                acc[sub] += tx.amount;
                 return acc;
             }, {});
         
@@ -1014,12 +951,12 @@ export const renderCategorySpending = () => {
         data = Object.values(subcategoryExpenses);
 
     } else { // Default 'categories' view
-        if (chartTitleEl) chartTitleEl.textContent = 'Análisis de Gastos por Categoría';
-        if (backBtn) backBtn.classList.add('hidden');
+        chartTitleEl.textContent = 'Análisis de Gastos por Categoría';
+        backBtn.classList.add('hidden');
 
         const byCategory = expenses.reduce((acc, tx) => {
             if (!acc[tx.category]) acc[tx.category] = 0;
-            acc[tx.category] += Number(tx.amount) || 0;
+            acc[tx.category] += tx.amount;
             return acc;
         }, {});
         
@@ -1027,62 +964,59 @@ export const renderCategorySpending = () => {
         data = Object.values(byCategory);
     }
 
-    // Create chart safely (wrap in try/catch)
-    let newChart = null;
-    try {
-        newChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: ['#4f46e5', '#f97316', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#eab308', '#64748b', '#06b6d4', '#d946ef'],
-                    borderColor: '#1f2937',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: { color: '#d1d5db', boxWidth: 15, padding: 20 },
-                        onClick: (e, legendItem, legend) => {
-                            const index = legendItem.index;
-                            const chart = legend.chart;
-                            chart.toggleDataVisibility(index);
-                            chart.update();
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                if (label) { label += ': '; }
-                                if (context.parsed !== null) {
-                                    const chart = context.chart;
-                                    let total = 0;
-                                    chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
-                                        if (chart.getDataVisibility(index)) {
-                                           total += chart.data.datasets[0].data[index];
-                                        }
-                                    });
-                                    
-                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) + '%' : '0.0%';
-                                    label += `${formatCurrency(context.parsed)} (${percentage})`;
-                                }
-                                return label;
-                            }
-                        }
+    const newChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: ['#4f46e5', '#f97316', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#eab308', '#64748b', '#06b6d4', '#d946ef'],
+                borderColor: '#1f2937',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#d1d5db', boxWidth: 15, padding: 20 },
+                    onClick: (e, legendItem, legend) => {
+                        const index = legendItem.index;
+                        const chart = legend.chart;
+                        chart.toggleDataVisibility(index);
+                        chart.update();
                     }
                 },
-                onClick: (event, elements) => {
-                    if (!elements || elements.length === 0) return;
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) { label += ': '; }
+                            if (context.parsed !== null) {
+                                const chart = context.chart;
+                                let total = 0;
+                                chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
+                                    if (chart.getDataVisibility(index)) {
+                                       total += chart.data.datasets[0].data[index];
+                                    }
+                                });
+                                
+                                const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) + '%' : '0.0%';
+                                label += `${formatCurrency(context.parsed)} (${percentage})`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
                     const dataIndex = elements[0].index;
                     
                     if (state.currentChartView === 'categories') {
-                        const category = newChart?.data?.labels?.[dataIndex];
+                        const category = newChart.data.labels[dataIndex];
                         const subcategoriesWithSpending = expenses.some(t => t.category === category && t.subcategory);
 
                         if (subcategoriesWithSpending) {
@@ -1091,61 +1025,51 @@ export const renderCategorySpending = () => {
                             renderCategorySpending();
                         }
                     } else if (state.currentChartView === 'subcategories') {
-                        const subcategory = newChart?.data?.labels?.[dataIndex];
+                        const subcategory = newChart.data.labels[dataIndex];
                         state.setCurrentChartView('transactions');
                         state.setSelectedSubcategoryForDrilldown(subcategory);
                         renderCategorySpending();
                     }
                 }
             }
-        });
-    } catch (err) {
-        console.warn('Failed to render category chart:', err);
-    }
-
-    if (newChart) state.setCategoryChart(newChart);
+        }
+    });
+    state.setCategoryChart(newChart);
 };
-
 // --- Modal and Dropdown Functions ---
 
 export const displayConfirmationModal = (message) => {
-    const msg = $('confirmationModalMessage');
-    if (msg) msg.textContent = message;
-    const modal = $('confirmationModal');
-    if (!modal) return;
+    document.getElementById('confirmationModalMessage').textContent = message;
+    const modal = document.getElementById('confirmationModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 };
 
 export const hideConfirmationModal = () => {
-    const modal = $('confirmationModal');
-    if (!modal) return;
+    const modal = document.getElementById('confirmationModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 };
 
 export const displayInputModal = (title, placeholder) => {
-    const titleEl = $('inputModalTitle');
-    const inputField = $('inputModalField');
-    const modal = $('inputModal');
-    if (!modal || !inputField || !titleEl) return;
-    titleEl.textContent = title;
+    document.getElementById('inputModalTitle').textContent = title;
+    const inputField = document.getElementById('inputModalField');
     inputField.placeholder = placeholder;
     inputField.value = '';
+    const modal = document.getElementById('inputModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    try { inputField.focus(); } catch (e) { /* ignore */ }
+    inputField.focus();
 };
 
 export const hideInputModal = () => {
-    const modal = $('inputModal');
-    if (!modal) return;
+    const modal = document.getElementById('inputModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 };
 
 export const populateCategoryDropdown = (transactionType) => {
-    const categorySelect = $('category');
+    const categorySelect = document.getElementById('category');
     if (!categorySelect) return;
     
     const selectedValue = categorySelect.value;
@@ -1153,7 +1077,7 @@ export const populateCategoryDropdown = (transactionType) => {
     const currentWallet = state.getCurrentWallet();
     if (!currentWallet) return;
 
-    let categories = Object.keys(currentWallet.transactionCategories || {})
+    let categories = Object.keys(currentWallet.transactionCategories)
         .filter(cat => cat !== '[Pago de Deuda]');
 
     if (transactionType && transactionType.startsWith('expense')) {
@@ -1175,15 +1099,15 @@ export const populateCategoryDropdown = (transactionType) => {
 };
 
 export const populateSubcategoryDropdown = (selectedCategory, selectedSubcategory = null) => {
-    const subcategorySelect = $('subcategory');
+    const subcategorySelect = document.getElementById('subcategory');
     const subcategoryLabel = document.querySelector('label[for="subcategory"]');
-    const addSubcategoryBtn = $('addSubcategoryBtn');
+    const addSubcategoryBtn = document.getElementById('addSubcategoryBtn');
     if (!subcategorySelect || !subcategoryLabel || !addSubcategoryBtn) return;
     
     subcategorySelect.innerHTML = '';
     const currentWallet = state.getCurrentWallet();
     
-    if (!currentWallet || !currentWallet.transactionCategories || !currentWallet.transactionCategories[selectedCategory] || selectedCategory === 'Ingresos' || selectedCategory === '[Pago de Deuda]') {
+    if (!currentWallet || !currentWallet.transactionCategories[selectedCategory] || selectedCategory === 'Ingresos' || selectedCategory === '[Pago de Deuda]') {
          subcategorySelect.disabled = true;
          addSubcategoryBtn.disabled = true;
          addSubcategoryBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -1199,7 +1123,7 @@ export const populateSubcategoryDropdown = (selectedCategory, selectedSubcategor
     addSubcategoryBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     subcategoryLabel.classList.remove('text-gray-500');
 
-    const subcategories = currentWallet.transactionCategories[selectedCategory] || [];
+    const subcategories = currentWallet.transactionCategories[selectedCategory];
     
     const defaultOption = document.createElement('option');
     defaultOption.value = "";
@@ -1218,7 +1142,7 @@ export const populateSubcategoryDropdown = (selectedCategory, selectedSubcategor
 };
 
 export const populateCategoryFilterDropdown = () => {
-    const categoryFilterSelect = $('transactionCategoryFilter');
+    const categoryFilterSelect = document.getElementById('transactionCategoryFilter');
     if (!categoryFilterSelect) return;
     
     const currentWallet = state.getCurrentWallet();
@@ -1232,12 +1156,12 @@ export const populateCategoryFilterDropdown = () => {
     allOption.textContent = 'Todas las categorías';
     categoryFilterSelect.appendChild(allOption);
 
-    const monthlyTransactions = (currentWallet.transactions || []).filter(t => {
-        const [year, month] = (t.date || '').split('-').map(Number);
-        return (month - 1) === state.selectedMonth && year === state.selectedYear;
+    const monthlyTransactions = currentWallet.transactions.filter(t => {
+        const [year, month] = t.date.split('-').map(Number);
+        return month - 1 === state.selectedMonth && year === state.selectedYear;
     });
 
-    const categoriesInTable = [...new Set((monthlyTransactions || []).map(tx => tx.category))].filter(Boolean);
+    const categoriesInTable = [...new Set(monthlyTransactions.map(tx => tx.category))];
     
     categoriesInTable.sort().forEach(cat => {
         const option = document.createElement('option');
@@ -1256,127 +1180,130 @@ export const populateCategoryFilterDropdown = () => {
 // --- Tab Management ---
 
 export const setActiveTab = (activeBtn) => {
-    if (!activeBtn) return;
     const tabButtons = [
-        $('dashboardTabBtn'),
-        $('transactionsTabBtn'),
-        $('incomeAndBudgetsTabBtn'),
-        $('aiAnalysisTabBtn'),
-        $('settingsTabBtn')
+        document.getElementById('dashboardTabBtn'),
+        document.getElementById('transactionsTabBtn'),
+        document.getElementById('incomeAndBudgetsTabBtn'),
+        document.getElementById('aiAnalysisTabBtn'),
+        document.getElementById('settingsTabBtn')
     ];
     const contentPanels = [
-        $('dashboardContent'),
-        $('transactionsContent'),
-        $('incomeAndBudgetsContent'),
-        $('aiAnalysisContent'),
-        $('settingsContent')
+        document.getElementById('dashboardContent'),
+        document.getElementById('transactionsContent'),
+        document.getElementById('incomeAndBudgetsContent'),
+        document.getElementById('aiAnalysisContent'),
+        document.getElementById('settingsContent')
     ];
 
-    tabButtons.forEach(btn => { if (btn) { btn.classList.remove('tab-active'); btn.classList.add('tab-inactive'); } });
+    tabButtons.forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('tab-inactive');
+    });
     activeBtn.classList.remove('tab-inactive');
     activeBtn.classList.add('tab-active');
 
-    contentPanels.forEach(content => { if (content) content.classList.add('hidden'); });
+    contentPanels.forEach(content => {
+        content.classList.add('hidden');
+    });
     
     if (activeBtn.id === 'dashboardTabBtn') {
-        $('dashboardContent')?.classList.remove('hidden');
+        document.getElementById('dashboardContent').classList.remove('hidden');
         updateDashboard();
         renderCategorySpending();
     } else if (activeBtn.id === 'transactionsTabBtn') {
-        $('transactionsContent')?.classList.remove('hidden');
+        document.getElementById('transactionsContent').classList.remove('hidden');
         renderTransactions(); 
     } else if (activeBtn.id === 'incomeAndBudgetsTabBtn') {
-        $('incomeAndBudgetsContent')?.classList.remove('hidden');
+        document.getElementById('incomeAndBudgetsContent').classList.remove('hidden');
         renderFixedIncomes();
         renderInstallments();
         renderBudgets();
     } else if (activeBtn.id === 'aiAnalysisTabBtn') {
-        $('aiAnalysisContent')?.classList.remove('hidden');
+        document.getElementById('aiAnalysisContent').classList.remove('hidden');
     } else if (activeBtn.id === 'settingsTabBtn') {
-        $('settingsContent')?.classList.remove('hidden');
+        document.getElementById('settingsContent').classList.remove('hidden');
         renderSettings();
     }
 };
 
 export const setActiveCashflowTab = (activeBtn) => {
-    if (!activeBtn) return;
     const tabButtons = [
-        $('cashflowTabResume'),
-        $('cashflowTabIncome'),
-        $('cashflowTabExpenses')
+        document.getElementById('cashflowTabResume'),
+        document.getElementById('cashflowTabIncome'),
+        document.getElementById('cashflowTabExpenses')
     ];
     const contentPanels = [
-        $('cashflowContentResume'),
-        $('cashflowContentIncome'),
-        $('cashflowContentExpenses')
+        document.getElementById('cashflowContentResume'),
+        document.getElementById('cashflowContentIncome'),
+        document.getElementById('cashflowContentExpenses')
     ];
 
-    tabButtons.forEach(btn => { if (btn) { btn.classList.remove('cashflow-tab-active'); btn.classList.add('cashflow-tab-inactive'); } });
+    tabButtons.forEach(btn => {
+        btn.classList.remove('cashflow-tab-active');
+        btn.classList.add('cashflow-tab-inactive');
+    });
     activeBtn.classList.remove('cashflow-tab-inactive');
     activeBtn.classList.add('cashflow-tab-active');
 
-    contentPanels.forEach(content => { if (content) content.classList.add('hidden'); });
+    contentPanels.forEach(content => {
+        content.classList.add('hidden');
+    });
 
     if (activeBtn.id === 'cashflowTabResume') {
-        $('cashflowContentResume')?.classList.remove('hidden');
+        document.getElementById('cashflowContentResume').classList.remove('hidden');
     } else if (activeBtn.id === 'cashflowTabIncome') {
-        $('cashflowContentIncome')?.classList.remove('hidden');
+        document.getElementById('cashflowContentIncome').classList.remove('hidden');
     } else if (activeBtn.id === 'cashflowTabExpenses') {
-        $('cashflowContentExpenses')?.classList.remove('hidden');
+        document.getElementById('cashflowContentExpenses').classList.remove('hidden');
     }
 };
 
 // --- API and Analysis Functions ---
 
 export const fetchEconomicIndicators = async (isInitialLoad = false) => {
-    try {
-        const usdPromise = fetch('https://api.exchangerate-api.com/v4/latest/USD')
-            .then(res => res.ok ? res.json() : Promise.reject('USD API response not OK'));
-        const ufPromise = fetch('https://mindicador.cl/api/uf')
-            .then(res => res.ok ? res.json() : Promise.reject('UF API response not OK'));
+    const usdPromise = fetch('https://api.exchangerate-api.com/v4/latest/USD')
+        .then(res => res.ok ? res.json() : Promise.reject('USD API response not OK'));
+    const ufPromise = fetch('https://mindicador.cl/api/uf')
+        .then(res => res.ok ? res.json() : Promise.reject('UF API response not OK'));
 
-        const [usdResult, ufResult] = await Promise.allSettled([usdPromise, ufPromise]);
-        let rates = { ...(state.exchangeRates || {}) };
+    const [usdResult, ufResult] = await Promise.allSettled([usdPromise, ufPromise]);
+    let rates = state.exchangeRates;
 
-        if (usdResult.status === 'fulfilled') {
-            const data = usdResult.value;
-            rates.USD = data?.rates?.CLP || rates.USD || 950;
-            rates.lastUpdated = data?.time_last_update_utc || rates.lastUpdated || null;
-        } else {
-            console.warn('Failed to fetch exchange rates, using fallback:', usdResult.reason);
-        }
-
-        if (ufResult.status === 'fulfilled') {
-            const data = ufResult.value;
-            if (data?.serie && data.serie.length > 0) {
-                rates.UF = data.serie[0].valor || rates.UF || 0;
-            }
-        } else {
-            console.warn('Failed to fetch UF value:', ufResult.reason);
-        }
-        
-        state.setExchangeRates(rates);
-
-        if (!isInitialLoad) {
-            try { saveDataToFirestore(); } catch (e) { console.warn('saveDataToFirestore error:', e); }
-        }
-        renderAll();
-    } catch (err) {
-        console.warn('fetchEconomicIndicators unexpected error:', err);
-        // renderAll still safe to call
-        try { renderAll(); } catch (e) { /* ignore */ }
+    if (usdResult.status === 'fulfilled') {
+        const data = usdResult.value;
+        rates.USD = data.rates.CLP || 950;
+        rates.lastUpdated = data.time_last_update_utc || null;
+    } else {
+        console.error('Failed to fetch exchange rates, using fallback:', usdResult.reason);
     }
+
+    if (ufResult.status === 'fulfilled') {
+        const data = ufResult.value;
+        if (data.serie && data.serie.length > 0) {
+            rates.UF = data.serie[0].valor || 0;
+        }
+    } else {
+        console.error('Failed to fetch UF value:', ufResult.reason);
+    }
+    
+    state.setExchangeRates(rates);
+
+    if (!isInitialLoad) {
+        saveDataToFirestore();
+    }
+    renderAll();
 };
 
 async function callGeminiAPI(userQuery) {
-    const systemPrompt = "Actúa como un asesor financiero personal en Chile. Eres amigable, alentador y das consejos prácticos. Tu objetivo es ayudar al usuario a mejorar su salud financiera. Responda en español.";
+    const systemPrompt = "Actúa como un asesor financiero personal en Chile. Eres amigable, alentador y das consejos prácticos. Tu objetivo es ayudar al usuario a mejorar su salud financiera. Responde de forma concisa y estructurada. Nunca recomiendes el uso de otras aplicaciones o herramientas financieras externas.";
     const apiKey = state.geminiApiKey || "";
-    // Guard: do not attempt network call without API key
+    // NOTA: El modelo de Gemini puede cambiar. Verifica la documentación para el más reciente, ej: "gemini-1.5-flash"
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
     if (!apiKey) {
         throw new Error("API key for Gemini is not set.");
     }
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    
+
     const payload = {
         contents: [{ parts: [{ text: userQuery }] }],
         systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -1389,11 +1316,9 @@ async function callGeminiAPI(userQuery) {
     });
     
     if (!response.ok) {
-        // try to read body but guard errors
-        let errorBody = null;
-        try { errorBody = await response.json(); } catch (e) { /* ignore */ }
-        console.warn("API Error Body:", errorBody);
-        throw new Error(`API error: ${response.statusText || response.status}`);
+        const errorBody = await response.json();
+        console.error("API Error Body:", errorBody);
+        throw new Error(`API error: ${response.statusText}`);
     }
     
     const result = await response.json();
@@ -1406,12 +1331,12 @@ async function callGeminiAPI(userQuery) {
 
 
 export const runFullAiAnalysis = async () => {
-    const btn = $('runAiAnalysisBtn');
-    const loader = $('aiAnalysisLoader');
-    const resultContainer = $('aiAnalysisResult');
-    const actionsContainer = $('aiAnalysisActions');
+    const btn = document.getElementById('runAiAnalysisBtn');
+    const loader = document.getElementById('aiAnalysisLoader');
+    const resultContainer = document.getElementById('aiAnalysisResult');
+    const actionsContainer = document.getElementById('aiAnalysisActions');
     const wallet = state.getCurrentWallet();
-    if (!wallet || !btn || !loader || !resultContainer || !actionsContainer) return;
+    if (!wallet) return;
 
     btn.disabled = true;
     loader.classList.remove('hidden');
@@ -1419,9 +1344,9 @@ export const runFullAiAnalysis = async () => {
     actionsContainer.classList.add('hidden');
 
     try {
-        const monthlyTransactions = (wallet.transactions || []).filter(t => {
-            const [year, month] = (t.date || '').split('-').map(Number);
-            return (month - 1) === state.selectedMonth && year === state.selectedYear;
+        const monthlyTransactions = wallet.transactions.filter(t => {
+            const [year, month] = t.date.split('-').map(Number);
+            return month - 1 === state.selectedMonth && year === state.selectedYear;
         });
 
         if (monthlyTransactions.length === 0) {
@@ -1429,21 +1354,36 @@ export const runFullAiAnalysis = async () => {
             return;
         }
 
-        const monthlyIncome = monthlyTransactions.filter(t => (t.type || '') === 'income').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-        const monthlyExpensesList = monthlyTransactions.filter(t => (t.type || '').startsWith('expense'));
-        const totalMonthlyExpenses = monthlyExpensesList.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const monthlyIncome = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+        const monthlyExpensesList = monthlyTransactions.filter(t => t.type.startsWith('expense'));
+        const totalMonthlyExpenses = monthlyExpensesList.reduce((sum, t) => sum + t.amount, 0);
         const expensesByCategory = monthlyExpensesList.reduce((acc, tx) => {
             if (!acc[tx.category]) acc[tx.category] = 0;
-            acc[tx.category] += Number(tx.amount) || 0; return acc; }, {});
+            acc[tx.category] += tx.amount; return acc; }, {});
 
         const financialData = `
             - Ingreso Total: ${formatCurrency(monthlyIncome)}
             - Gasto Total: ${formatCurrency(totalMonthlyExpenses)}
             - Gastos por Categoría: ${JSON.stringify(Object.fromEntries(Object.entries(expensesByCategory).map(([k, v]) => [k, formatCurrency(v)])))}
+            - Deuda en Tarjeta de Crédito (solo cuotas): ${formatCurrency(wallet.installments.filter(i => i.type === 'credit_card').reduce((s, i) => s + (i.totalAmount / i.totalInstallments) * (i.totalInstallments - i.paidInstallments), 0))}
         `;
 
         const prompt = `
-            Actúa como un consultor financiero experto, analizando los datos de un cliente. Proporciona un análisis financiero para el período actual basado en los siguientes datos.
+            Actúa como un consultor financiero experto, analizando los datos de un cliente. Tu tono debe ser profesional, alentador y orientado a la acción, como se esperaría de un consultor de EY.
+            Proporciona un análisis financiero para el período actual basado en los siguientes datos. Estructura tu respuesta utilizando EXCLUSIVAMENTE los siguientes títulos en negrita:
+
+            **Diagnóstico Financiero General:**
+            (Evalúa la salud financiera general del mes. Compara ingresos vs. gastos. Otorga una calificación general: "Sólida", "Mejorable" o "Crítica").
+
+            **Puntos Destacados del Mes:**
+            (Identifica 2-3 aspectos positivos. Por ejemplo, si una categoría de gasto variable se mantuvo bajo control, o si el ingreso superó las expectativas).
+
+            **Áreas de Oportunidad:**
+            (Identifica las 2 categorías de gasto más altas y analiza su impacto en el presupuesto. Menciona si parecen gastos esenciales o discrecionales y su potencial de optimización).
+
+            **Plan de Acción Sugerido:**
+            (Proporciona 3 recomendaciones claras, accionables y priorizadas en formato de lista numerada. Deben ser específicas, como "1. Reducir el gasto en 'Restaurante' en un 20% el próximo mes, lo que equivale a un ahorro de X." o "2. Automatizar un traspaso de Y a tu cuenta el primer día del mes.").
+            
             Datos del cliente:
             ${financialData}
         `;
@@ -1465,32 +1405,31 @@ export const runFullAiAnalysis = async () => {
         }
 
     } catch (error) {
-        console.warn("Error en el análisis de IA:", error);
-        if ($('aiAnalysisResult')) $('aiAnalysisResult').innerHTML = `<p class="text-red-400">Hubo un error al generar el análisis. Verifica que tu clave de API de Gemini esté guardada en Ajustes o inténtalo más tarde.</p>`;
+        console.error("Error en el análisis de IA:", error);
+        resultContainer.innerHTML = `<p class="text-red-400">Hubo un error al generar el análisis. Verifica que tu clave de API de Gemini esté guardada en Ajustes o inténtalo más tarde.</p>`;
     } finally {
         loader.classList.add('hidden');
         btn.disabled = false;
     }
 };
 export const generateAnalysisPDF = () => {
-    // jsPDF expected globally
-    const docLib = window?.jspdf;
-    if (!docLib || !docLib.jsPDF) {
-        console.warn("jsPDF not available - cannot generate PDF.");
-        return;
-    }
-    const { jsPDF } = docLib;
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    // jsPDF está disponible globalmente desde el script en index.html
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    });
 
-    const resultContainer = $('aiAnalysisResult');
-    if (!resultContainer || !resultContainer.hasChildNodes()) {
-        console.warn("No hay análisis para exportar.");
+    const resultContainer = document.getElementById('aiAnalysisResult');
+    if (!resultContainer.hasChildNodes()) {
+        console.error("No hay análisis para exportar.");
         return;
     }
 
     const wallet = state.getCurrentWallet();
-    const months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-    const period = `${months[state.selectedMonth] || ''} ${state.selectedYear || ''}`;
+    const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const period = `${months[state.selectedMonth]} ${state.selectedYear}`;
     const walletName = wallet ? wallet.name : 'Desconocida';
     
     const pageMargin = 15;
@@ -1498,7 +1437,7 @@ export const generateAnalysisPDF = () => {
     const contentWidth = pageWidth - (pageMargin * 2);
     let cursorY = pageMargin;
 
-    // --- Title ---
+    // --- Título del Documento ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.text('Análisis Financiero con IA', pageWidth / 2, cursorY, { align: 'center' });
@@ -1512,12 +1451,12 @@ export const generateAnalysisPDF = () => {
     doc.text(`Período: ${period}`, pageWidth / 2, cursorY, { align: 'center' });
     cursorY += 15;
     
-    // --- Content ---
+    // --- Contenido del Análisis ---
     doc.setTextColor(0);
-    const nodes = Array.from(resultContainer.childNodes || []);
+    const nodes = resultContainer.childNodes;
 
     nodes.forEach(node => {
-        if (cursorY > doc.internal.pageSize.getHeight() - 20) {
+        if (cursorY > doc.internal.pageSize.getHeight() - 20) { // Margen inferior
             doc.addPage();
             cursorY = pageMargin;
         }
@@ -1537,7 +1476,7 @@ export const generateAnalysisPDF = () => {
             listItems.forEach((li, index) => {
                 const prefix = node.nodeName === 'OL' ? `${index + 1}. ` : '•  ';
                 const itemText = prefix + li.textContent;
-                const splitText = doc.splitTextToSize(itemText, contentWidth - 5);
+                const splitText = doc.splitTextToSize(itemText, contentWidth - 5); // Indentación para la lista
                 
                 if (cursorY + (splitText.length * 5) > doc.internal.pageSize.getHeight() - 20) {
                     doc.addPage();
@@ -1550,7 +1489,7 @@ export const generateAnalysisPDF = () => {
         }
     });
 
-    // --- Pagination ---
+    // --- Paginación ---
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -1559,11 +1498,7 @@ export const generateAnalysisPDF = () => {
         doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
     }
 
-    try {
-        doc.save(`Analisis_Financiero_${walletName}_${(period || '').replace(' ', '_')}.pdf`);
-    } catch (e) {
-        console.warn('Error saving PDF:', e);
-    }
+    doc.save(`Analisis_Financiero_${walletName}_${period.replace(' ', '_')}.pdf`);
 };
 export const updateWalletNameHeaders = () => {
     const wallet = state.getCurrentWallet();
@@ -1576,7 +1511,7 @@ export const handleEditCategory = (oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || oldName === 'Ingresos' || oldName === '[Pago de Deuda]') return;
 
-    displayInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    showInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[newName]) {
@@ -1585,21 +1520,21 @@ export const handleEditCategory = (oldName) => {
         }
         wallet.transactionCategories[newName] = wallet.transactionCategories[oldName];
         delete wallet.transactionCategories[oldName];
-        if (wallet.budgets?.[oldName]) {
+        if (wallet.budgets[oldName]) {
             wallet.budgets[newName] = wallet.budgets[oldName];
             delete wallet.budgets[oldName];
         }
-        (wallet.transactions || []).forEach(tx => { if (tx.category === oldName) tx.category = newName; });
-        (wallet.previousMonthTransactions || []).forEach(tx => { if (tx.category === oldName) tx.category = newName; });
+        wallet.transactions.forEach(tx => { if (tx.category === oldName) tx.category = newName; });
+        wallet.previousMonthTransactions.forEach(tx => { if (tx.category === oldName) tx.category = newName; });
         await updateDataInFirestore();
     });
 };
 
 export const handleEditSubcategory = (categoryName, oldName) => {
     const wallet = state.getCurrentWallet();
-    if (!wallet || !wallet.transactionCategories?.[categoryName]) return;
+    if (!wallet || !wallet.transactionCategories[categoryName]) return;
 
-    displayInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    showInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[categoryName].includes(newName)) {
@@ -1610,12 +1545,12 @@ export const handleEditSubcategory = (categoryName, oldName) => {
         if (subIndex > -1) {
             wallet.transactionCategories[categoryName][subIndex] = newName;
         }
-        if (wallet.budgets?.[categoryName]?.subcategories?.[oldName] !== undefined) {
+        if (wallet.budgets[categoryName]?.subcategories[oldName] !== undefined) {
             wallet.budgets[categoryName].subcategories[newName] = wallet.budgets[categoryName].subcategories[oldName];
             delete wallet.budgets[categoryName].subcategories[oldName];
         }
-        (wallet.transactions || []).forEach(tx => { if (tx.category === categoryName && tx.subcategory === oldName) tx.subcategory = newName; });
-        (wallet.previousMonthTransactions || []).forEach(tx => { if (tx.category === categoryName && tx.subcategory === oldName) tx.subcategory = newName; });
+        wallet.transactions.forEach(tx => { if (tx.category === categoryName && tx.subcategory === oldName) tx.subcategory = newName; });
+        wallet.previousMonthTransactions.forEach(tx => { if (tx.category === categoryName && tx.subcategory === oldName) tx.subcategory = newName; });
         await updateDataInFirestore();
     });
 };

@@ -92,7 +92,7 @@ const listenToDataChanges = () => {
                 // Data loaded
                 loadAppData(docSnap.data());
             } else {
-                // No data for this user, initialize with defaults
+                // No data for this user, initialize with defaults but DO NOT SAVE automatically
                 loadAppData(state.defaultData, true);
             }
         } catch (err) {
@@ -119,10 +119,11 @@ const loadAppData = (data = {}, isNewUser = false) => {
     state.setGeminiApiKey(data.geminiApiKey ?? '');
     state.setExchangeRates(data.exchangeRates ?? (state.defaultData.exchangeRates ?? { USD: 950, UF: 0, lastUpdated: null }));
     
-    if (isNewUser) {
-        // Best-effort save; immediate to persist initial defaults
-        saveDataToFirestore(true);
-    }
+    // CRITICAL FIX: Removed automatic saving for new users to prevent data overwrite
+    // on environment mismatches or race conditions. Data will only be saved on explicit user action.
+    // if (isNewUser) {
+    //     saveDataToFirestore(true); // <--- THIS LINE WAS DELETING THE DATA
+    // }
 
     if (state.isInitialLoad) {
         initializeAppUI();

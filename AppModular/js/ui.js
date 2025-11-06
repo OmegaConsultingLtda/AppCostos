@@ -51,8 +51,12 @@ export const getNumericValue = (value) => {
     if (value == null) return 0;
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-        const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
-        return Number.isNaN(parsed) ? 0 : parsed;
+        // Para el formato numérico 'es-CL', los puntos son separadores de miles.
+        // Se deben eliminar antes de convertir el string a un número.
+        const cleanedString = value.toString().replace(/\./g, '');
+        // Usamos parseInt ya que la app parece manejar principalmente montos enteros.
+        const parsed = parseInt(cleanedString, 10);
+        return isNaN(parsed) ? 0 : parsed;
     }
     return 0;
 };

@@ -51,12 +51,8 @@ export const getNumericValue = (value) => {
     if (value == null) return 0;
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-        // Para el formato numérico 'es-CL', los puntos son separadores de miles.
-        // Se deben eliminar antes de convertir el string a un número.
-        const cleanedString = value.toString().replace(/\./g, '');
-        // Usamos parseInt ya que la app parece manejar principalmente montos enteros.
-        const parsed = parseInt(cleanedString, 10);
-        return isNaN(parsed) ? 0 : parsed;
+        const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
+        return Number.isNaN(parsed) ? 0 : parsed;
     }
     return 0;
 };
@@ -88,7 +84,7 @@ export const renderAll = () => {
     [
         'previousMonthSurplusInput', 'bankDebitBalanceInput', 'bankCreditBalanceInput',
         'creditCardLimitInput', 'amount', 'fixedIncomeExpectedAmount', 'installmentTotalAmount',
-        'installmentTotal', 'paymentAmount'
+        'installmentTotal'
     ].forEach(id => {
         const input = $(id);
         if (input) formatNumberInput(input);
@@ -1112,7 +1108,7 @@ export const renderCategorySpending = () => {
 
 // --- Modal and Dropdown Functions ---
 
-export const showConfirmationModal = (message) => {
+export const displayConfirmationModal = (message) => {
     const msg = $('confirmationModalMessage');
     if (msg) msg.textContent = message;
     const modal = $('confirmationModal');
@@ -1128,7 +1124,7 @@ export const hideConfirmationModal = () => {
     modal.classList.remove('flex');
 };
 
-export const showInputModal = (title, placeholder) => {
+export const displayInputModal = (title, placeholder) => {
     const titleEl = $('inputModalTitle');
     const inputField = $('inputModalField');
     const modal = $('inputModal');
@@ -1580,7 +1576,7 @@ export const handleEditCategory = (oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || oldName === 'Ingresos' || oldName === '[Pago de Deuda]') return;
 
-    showInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    displayInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[newName]) {
@@ -1603,7 +1599,7 @@ export const handleEditSubcategory = (categoryName, oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || !wallet.transactionCategories?.[categoryName]) return;
 
-    showInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    displayInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[categoryName].includes(newName)) {

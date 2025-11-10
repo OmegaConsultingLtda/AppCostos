@@ -1038,18 +1038,36 @@ export const renderCategorySpending = () => {
 };
 // --- Modal and Dropdown Functions ---
 
-export const displayConfirmationModal = (message) => {
+
+let confirmationCallback = null;
+export const showConfirmationModal = (message, callback) => {
     document.getElementById('confirmationModalMessage').textContent = message;
     const modal = document.getElementById('confirmationModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    confirmationCallback = callback;
 };
 
 export const hideConfirmationModal = () => {
     const modal = document.getElementById('confirmationModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    confirmationCallback = null;
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmBtn = document.getElementById('confirmActionBtn');
+    const cancelBtn = document.getElementById('cancelConfirmationBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            if (confirmationCallback) confirmationCallback();
+            hideConfirmationModal();
+        });
+    }
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideConfirmationModal);
+    }
+});
 
 export const displayInputModal = (title, placeholder) => {
     document.getElementById('inputModalTitle').textContent = title;

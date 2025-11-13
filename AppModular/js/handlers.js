@@ -14,7 +14,7 @@ function showConfirmationModal(message, onConfirm) {
     ui.displayConfirmationModal(message);
 }
 
-function showInputModal(title, placeholder, onSave) {
+export function showInputModal(title, placeholder, onSave) {
     currentInputConfirmAction = onSave;
     ui.displayInputModal(title, placeholder);
 }
@@ -876,10 +876,15 @@ export function initializeEventListeners() {
     
     document.getElementById('inputModalForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        if (currentInputConfirmAction) {
-            const value = document.getElementById('inputModalField').value;
-            if (value && value.trim() !== '') {
+        const value = document.getElementById('inputModalField').value;
+        if (value && value.trim() !== '') {
+            const editCallback = ui.getEditCallback();
+            if (editCallback) {
+                editCallback(value.trim());
+                ui.clearEditCallback();
+            } else if (currentInputConfirmAction) {
                 currentInputConfirmAction(value.trim());
+                currentInputConfirmAction = null;
             }
         }
         ui.hideInputModal();

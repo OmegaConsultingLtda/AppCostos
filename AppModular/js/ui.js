@@ -1525,11 +1525,25 @@ export const updateWalletNameHeaders = () => {
         el.innerHTML = `<i class="fas fa-wallet fa-fw mr-2 text-indigo-400"></i> Billetera: ${wallet.name}`;
     });
 };
+let _currentEditCallback = null;
+
+export const setEditCallback = (callback) => {
+    _currentEditCallback = callback;
+};
+
+export const getEditCallback = () => {
+    return _currentEditCallback;
+};
+
+export const clearEditCallback = () => {
+    _currentEditCallback = null;
+};
+
 export const handleEditCategory = (oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || oldName === 'Ingresos' || oldName === '[Pago de Deuda]') return;
 
-    showInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    const callback = async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[newName]) {
@@ -1545,14 +1559,19 @@ export const handleEditCategory = (oldName) => {
         wallet.transactions.forEach(tx => { if (tx.category === oldName) tx.category = newName; });
         wallet.previousMonthTransactions.forEach(tx => { if (tx.category === oldName) tx.category = newName; });
         await updateDataInFirestore();
-    });
+        renderBudgets();
+        renderTransactions();
+    };
+    
+    setEditCallback(callback);
+    displayInputModal(`Editar Categoría`, `Nuevo nombre para "${oldName}"`);
 };
 
 export const handleEditSubcategory = (categoryName, oldName) => {
     const wallet = state.getCurrentWallet();
     if (!wallet || !wallet.transactionCategories[categoryName]) return;
 
-    showInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`, async (newName) => {
+    const callback = async (newName) => {
         if (!newName || newName.trim() === '' || newName === oldName) return;
         newName = newName.trim();
         if (wallet.transactionCategories[categoryName].includes(newName)) {
@@ -1570,5 +1589,10 @@ export const handleEditSubcategory = (categoryName, oldName) => {
         wallet.transactions.forEach(tx => { if (tx.category === categoryName && tx.subcategory === oldName) tx.subcategory = newName; });
         wallet.previousMonthTransactions.forEach(tx => { if (tx.category === categoryName && tx.subcategory === oldName) tx.subcategory = newName; });
         await updateDataInFirestore();
-    });
+        renderBudgets();
+        renderTransactions();
+    };
+    
+    setEditCallback(callback);
+    displayInputModal(`Editar Subcategoría en "${categoryName}"`, `Nuevo nombre para "${oldName}"`);
 };

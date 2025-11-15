@@ -64,10 +64,12 @@ export const renderAll = () => {
     renderSettings();
     populateCategoryDropdown();
     populateCategoryFilterDropdown();
-    ['previousMonthSurplusInput', 'bankDebitBalanceInput', 'bankCreditBalanceInput', 'creditCardLimitInput', 'amount', 'fixedIncomeExpectedAmount', 'installmentTotalAmount', 'installmentTotal', 'paymentAmount'].forEach(id => {
+    ['previousMonthSurplusInput', 'bankDebitBalanceInput', 'bankCreditBalanceInput', 'amount', 'fixedIncomeExpectedAmount', 'installmentTotalAmount', 'installmentTotal', 'paymentAmount'].forEach(id => {
         const input = document.getElementById(id);
         if (input) formatNumberInput(input);
     });
+    // Formatear inputs de cupo de tarjetas
+    document.querySelectorAll('.credit-card-limit-input').forEach(input => formatNumberInput(input));
 };
 
 export const initializeAppUI = () => {
@@ -133,10 +135,14 @@ export const renderTransactions = () => {
     const tableBody = document.getElementById('transactionsTable');
     if (!tableBody) return;
     
-    const getTypeBadge = (type) => {
-        if (type === 'income') return `<span class="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full bg-blue-500 text-white"><i class="fas fa-arrow-down"></i>Ingreso</span>`;
-        if (type === 'expense_debit') return `<span class="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full bg-orange-500 text-white"><i class="fas fa-wallet"></i>Gasto (Débito)</span>`;
-        if (type === 'expense_credit') return `<span class="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full bg-purple-600 text-white"><i class="far fa-credit-card"></i>Gasto (Crédito)</span>`;
+    const getTypeBadge = (tx) => {
+        if (tx.type === 'income') return `<span class="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full bg-blue-500 text-white"><i class="fas fa-arrow-down"></i>Ingreso</span>`;
+        if (tx.type === 'expense_debit') return `<span class="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full bg-orange-500 text-white"><i class="fas fa-wallet"></i>Gasto (Débito)</span>`;
+        if (tx.type === 'expense_credit') {
+            const wallet = state.getCurrentWallet();
+            const cardName = wallet?.creditCards?.find(c => c.id === tx.cardId)?.name || 'Crédito';
+            return `<span class="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full bg-purple-600 text-white"><i class="far fa-credit-card"></i>${cardName}</span>`;
+        }
         return '';
     };
 
@@ -193,7 +199,7 @@ export const renderTransactions = () => {
                  ${tx.category}
                 ${tx.subcategory ? `<span class="block text-xs text-gray-400">${tx.subcategory}</span>` : ''}
             </td>
-            <td class="p-3 hidden md:table-cell">${getTypeBadge(tx.type)}</td>
+            <td class="p-3 hidden md:table-cell">${getTypeBadge(tx)}</td>
             <td class="p-3 text-right font-semibold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}">
                 ${tx.type === 'income' ? '+' : '-'} ${formatCurrency(tx.amount)}
             </td>
@@ -613,8 +619,6 @@ export const renderWalletSelector = () => {
 export const renderSettings = () => {
     const wallet = state.getCurrentWallet();
     if (!wallet) return;
-    
-    document.getElementById('creditCardLimitInput').value = wallet.creditCardLimit || '';
     document.getElementById('geminiApiKeyInput').value = state.geminiApiKey || '';
 
     const walletList = document.getElementById('walletList');
@@ -633,6 +637,49 @@ export const renderSettings = () => {
                 </div>
             `;
             walletList.appendChild(li);
+        });
+    }
+
+    // Renderizar tarjetas de crédito
+    const creditCardList = document.getElementById('creditCardList');
+    if (creditCardList) {
+        creditCardList.innerHTML = '';
+        const monthlyTransactions = wallet.transactions.filter(t => {
+            const [year, month] = t.date.split('-').map(Number);
+            return month - 1 === state.selectedMonth && year === state.selectedYear;
+        });
+        (wallet.creditCards || []).forEach(card => {
+            const monthlyCreditByCard = monthlyTransactions
+                .filter(t => t.type === 'expense_credit' && t.cardId === card.id)
+                .reduce((s, t) => s + t.amount, 0);
+            const installmentsDebtByCard = (wallet.installments || [])
+                .filter(i => i.type === 'credit_card' && i.cardId === card.id)
+                .reduce((sum, item) => {
+                    const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+                    return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
+                }, 0);
+            const appAvailable = (card.limit || 0) - installmentsDebtByCard - monthlyCreditByCard;
+
+            const li = document.createElement('li');
+            li.className = 'bg-gray-800 p-3 rounded-lg';
+            li.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="text-white font-medium">${card.name}</span>
+                    <div class="flex items-center gap-3">
+                        <button class="edit-credit-card-btn text-yellow-400 hover:text-yellow-300" data-card-id="${card.id}"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="delete-credit-card-btn text-red-500 hover:text-red-400" data-card-id="${card.id}"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+                <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm text-gray-400" for="card-limit-${card.id}">Cupo:</label>
+                        <input type="text" inputmode="numeric" id="card-limit-${card.id}" data-card-id="${card.id}" value="${card.limit ?? ''}" class="credit-card-limit-input bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-48">
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        Disponible: <span class="text-white font-semibold">${formatCurrency(appAvailable)}</span>
+                    </div>
+                </div>`;
+            creditCardList.appendChild(li);
         });
     }
 };
@@ -757,12 +804,40 @@ export const updateDashboard = () => {
             return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
     }, 0);
 
-    const realCreditLimit = wallet.creditCardLimit - creditCardInstallmentDebt;
-    document.getElementById('creditCardLimitInfo').innerHTML = `<span class="text-green-400">${formatCurrency(realCreditLimit)}</span> / ${formatCurrency(wallet.creditCardLimit)}`;
+    const totalCardsLimit = (wallet.creditCards || []).reduce((sum, c) => sum + (c.limit || 0), 0);
+    const realCreditLimit = totalCardsLimit - creditCardInstallmentDebt;
+    document.getElementById('creditCardLimitInfo').innerHTML = `<span class="text-green-400">${formatCurrency(realCreditLimit)}</span> / ${formatCurrency(totalCardsLimit)}`;
     
     const availableCreditAfterUsage = realCreditLimit - monthlyCreditExpenses;
     document.getElementById('usedCredit').textContent = formatCurrency(monthlyCreditExpenses);
     document.getElementById('availableCredit').textContent = formatCurrency(availableCreditAfterUsage);
+    // Desglose por tarjeta
+    const perCardUsageContainer = document.getElementById('perCardCreditUsage');
+    if (perCardUsageContainer) {
+        perCardUsageContainer.innerHTML = '';
+        (wallet.creditCards || []).forEach(card => {
+            const monthlyCreditByCard = monthlyTransactions
+                .filter(t => t.type === 'expense_credit' && t.cardId === card.id)
+                .reduce((s, t) => s + t.amount, 0);
+            const installmentsDebtByCard = wallet.installments
+                .filter(i => i.type === 'credit_card' && i.cardId === card.id)
+                .reduce((sum, item) => {
+                    const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+                    return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
+                }, 0);
+            const appAvailableByCard = (card.limit || 0) - installmentsDebtByCard - monthlyCreditByCard;
+            const row = document.createElement('div');
+            row.className = 'flex justify-between items-center text-sm bg-gray-800/40 p-2 rounded';
+            row.innerHTML = `
+                <span class="text-gray-300">${card.name}</span>
+                <span>
+                    <span class="text-red-400 font-semibold mr-3">${formatCurrency(monthlyCreditByCard)}</span>
+                    <span class="text-gray-400 mr-1">Disp.</span>
+                    <span class="text-green-400 font-semibold">${formatCurrency(appAvailableByCard)}</span>
+                </span>`;
+            perCardUsageContainer.appendChild(row);
+        });
+    }
 
     // --- Lógica de Conciliación Bancaria ---
     const appDebitBalance = totalIncome - monthlyDebitExpenses;
@@ -787,24 +862,32 @@ export const updateDashboard = () => {
         debitDiffAmountEl.className = 'font-bold text-lg';
     }
 
-    document.getElementById('reconciliationAppCreditBalance').textContent = formatCurrency(availableCreditAfterUsage);
-    const bankCreditBalanceInput = document.getElementById('bankCreditBalanceInput');
-    bankCreditBalanceInput.value = wallet.bankCreditBalance ? new Intl.NumberFormat('es-CL').format(wallet.bankCreditBalance) : '';
-    const creditDifference = availableCreditAfterUsage - (wallet.bankCreditBalance || 0);
-
-    const creditDiffContainer = document.getElementById('reconciliationCreditDifference');
-    const creditDiffAmountEl = document.getElementById('differenceCreditAmount');
-    creditDiffAmountEl.textContent = formatCurrency(creditDifference);
-
-    if (Math.abs(creditDifference) < 1 && (wallet.bankCreditBalance || 0) !== 0) {
-        creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-green-500/20';
-        creditDiffAmountEl.className = 'font-bold text-lg text-green-400';
-    } else if (creditDifference !== 0) {
-        creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-red-500/20';
-        creditDiffAmountEl.className = 'font-bold text-lg text-red-400';
-    } else {
-        creditDiffContainer.className = 'flex justify-between items-center p-3 rounded-lg transition-colors duration-300 bg-gray-800';
-        creditDiffAmountEl.className = 'font-bold text-lg';
+    // Conciliación Crédito por tarjeta
+    const reconCardsContainer = document.getElementById('reconciliationCreditCardsContainer');
+    if (reconCardsContainer) {
+        reconCardsContainer.innerHTML = '';
+        (wallet.creditCards || []).forEach(card => {
+            const monthlyCreditByCard = monthlyTransactions
+                .filter(t => t.type === 'expense_credit' && t.cardId === card.id)
+                .reduce((s, t) => s + t.amount, 0);
+            const installmentsDebtByCard = wallet.installments
+                .filter(i => i.type === 'credit_card' && i.cardId === card.id)
+                .reduce((sum, item) => {
+                    const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+                    return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
+                }, 0);
+            const appAvailableByCard = (card.limit || 0) - installmentsDebtByCard - monthlyCreditByCard;
+            const bankVal = card.bankAvailable || 0;
+            const diff = appAvailableByCard - bankVal;
+            const isMatch = Math.abs(diff) < 1 && bankVal !== 0;
+            const diffColor = isMatch ? 'text-green-400' : (diff !== 0 ? 'text-red-400' : '');
+            const bg = isMatch ? 'bg-green-500/20' : (diff !== 0 ? 'bg-red-500/20' : 'bg-gray-800');
+            const row = document.createElement('div');
+            row.className = 'p-3 rounded-lg border border-gray-700';
+            row.innerHTML = `
+                <div class=\"flex justify-between items-center mb-2\">\n                    <span class=\"font-semibold text-white\">${card.name}</span>\n                    <span class=\"text-sm text-gray-400\">Cupo App: <span class=\"text-white font-semibold\">${formatCurrency(appAvailableByCard)}</span></span>\n                </div>\n                <div class=\"flex justify-between items-center\">\n                    <label class=\"text-gray-400 mr-2\">Cupo (según banco):</label>\n                    <input type=\"text\" inputmode=\"numeric\" class=\"bank-credit-input bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-40 text-sm text-right\" data-card-id=\"${card.id}\" value=\"${bankVal ? new Intl.NumberFormat('es-CL').format(bankVal) : ''}\">\n                </div>\n                <hr class=\"border-gray-600 my-2\">\n                <div class=\"flex justify-between items-center p-2 rounded ${bg}\">\n                    <span class=\"font-semibold\">Diferencia:</span>\n                    <span class=\"font-bold ${diffColor}\">${formatCurrency(diff)}</span>\n                </div>`;
+            reconCardsContainer.appendChild(row);
+        });
     }
 
     // --- Lógica de Comparación Mensual ---

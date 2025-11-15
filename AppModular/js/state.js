@@ -8,6 +8,7 @@ export const defaultData = {
             previousMonthTransactions: [],
             fixedIncomes: [],
             installments: [],
+            creditCards: [],
             transactionCategories: {
                 'Ingresos': [],
                 '[Pago de Deuda]': [],

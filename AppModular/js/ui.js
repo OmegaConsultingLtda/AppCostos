@@ -598,6 +598,20 @@ export const renderBudgets = () => {
     document.getElementById('variablePaidTotal').textContent = formatCurrency(totalVariablePaid);
 
     // Los event listeners para los inputs se manejarán en handlers.js
+    // Poblar selectores de tarjeta en la creación de categorías nuevas
+    const walletCards = (wallet.creditCards || []);
+    const fillCardOptions = (selectEl) => {
+        if (!selectEl) return;
+        selectEl.innerHTML = '';
+        walletCards.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            selectEl.appendChild(opt);
+        });
+    };
+    fillCardOptions(document.getElementById('newRecurrentPaymentCardId'));
+    fillCardOptions(document.getElementById('newVariablePaymentCardId'));
 };
 
 export const renderWalletSelector = () => {
@@ -806,8 +820,27 @@ export const updateDashboard = () => {
 
     const totalCardsLimit = (wallet.creditCards || []).reduce((sum, c) => sum + (c.limit || 0), 0);
     const realCreditLimit = totalCardsLimit - creditCardInstallmentDebt;
-    document.getElementById('creditCardLimitInfo').innerHTML = `<span class="text-green-400">${formatCurrency(realCreditLimit)}</span> / ${formatCurrency(totalCardsLimit)}`;
-    
+    const creditCardLimitList = document.getElementById('creditCardLimitList');
+    if (creditCardLimitList) {
+        creditCardLimitList.innerHTML = '';
+        (wallet.creditCards || []).forEach(card => {
+            const installmentsDebtByCard = wallet.installments
+                .filter(i => i.type === 'credit_card' && i.cardId === card.id)
+                .reduce((sum, item) => {
+                    const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+                    return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
+                }, 0);
+            const realByCard = (card.limit || 0) - installmentsDebtByCard;
+            const row = document.createElement('div');
+            row.className = 'flex justify-between items-center bg-gray-800/40 p-2 rounded';
+            row.innerHTML = `
+                <span class="text-gray-300">${card.name}</span>
+                <span class="text-white font-semibold">${formatCurrency(realByCard)} <span class="text-gray-400 font-normal">/ ${formatCurrency(card.limit || 0)}</span></span>
+            `;
+            creditCardLimitList.appendChild(row);
+        });
+    }
+
     const availableCreditAfterUsage = realCreditLimit - monthlyCreditExpenses;
     document.getElementById('usedCredit').textContent = formatCurrency(monthlyCreditExpenses);
     document.getElementById('availableCredit').textContent = formatCurrency(availableCreditAfterUsage);

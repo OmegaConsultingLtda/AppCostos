@@ -592,7 +592,17 @@ export function initializeEventListeners() {
             if (newCategory && !wallet.transactionCategories[newCategory]) {
                 handleAction(() => {
                     wallet.transactionCategories[newCategory] = [];
-                    wallet.budgets[newCategory] = { total: null, type: 'recurrent', subcategories: {}, payments: {} };
+                    const payType = (document.getElementById('newRecurrentPaymentType')?.value) || 'expense_debit';
+                    const cardIdVal = document.getElementById('newRecurrentPaymentCardId')?.value;
+                    const priority = parseInt(document.getElementById('newRecurrentPriority')?.value) || 3;
+                    const flexible = !!document.getElementById('newRecurrentFlexible')?.checked;
+                    wallet.budgets[newCategory] = { 
+                        total: null, 
+                        type: 'recurrent', 
+                        subcategories: {}, 
+                        payments: {},
+                        config: { paymentType: payType, cardId: payType === 'expense_credit' ? (cardIdVal ? parseInt(cardIdVal) : null) : null, priority, flexible }
+                    };
                     input.value = '';
                 });
             }
@@ -605,7 +615,16 @@ export function initializeEventListeners() {
             if (newCategory && !wallet.transactionCategories[newCategory]) {
                 handleAction(() => {
                     wallet.transactionCategories[newCategory] = [];
-                    wallet.budgets[newCategory] = { total: null, type: 'variable', subcategories: {} };
+                    const payType = (document.getElementById('newVariablePaymentType')?.value) || 'expense_debit';
+                    const cardIdVal = document.getElementById('newVariablePaymentCardId')?.value;
+                    const priority = parseInt(document.getElementById('newVariablePriority')?.value) || 3;
+                    const flexible = !!document.getElementById('newVariableFlexible')?.checked;
+                    wallet.budgets[newCategory] = { 
+                        total: null, 
+                        type: 'variable', 
+                        subcategories: {},
+                        config: { paymentType: payType, cardId: payType === 'expense_credit' ? (cardIdVal ? parseInt(cardIdVal) : null) : null, priority, flexible }
+                    };
                     input.value = '';
                 });
             }
@@ -736,6 +755,24 @@ export function initializeEventListeners() {
         if (!wallet) return;
         const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
 
+        // Mostrar/ocultar selector de tarjeta al elegir método de pago al crear categoría
+        if (e.target.id === 'newRecurrentPaymentType') {
+            const wrapper = document.getElementById('newRecurrentPaymentCardWrapper');
+            if (wrapper) {
+                if (e.target.value === 'expense_credit') wrapper.classList.remove('hidden');
+                else wrapper.classList.add('hidden');
+            }
+            return;
+        }
+        if (e.target.id === 'newVariablePaymentType') {
+            const wrapper = document.getElementById('newVariablePaymentCardWrapper');
+            if (wrapper) {
+                if (e.target.value === 'expense_credit') wrapper.classList.remove('hidden');
+                else wrapper.classList.add('hidden');
+            }
+            return;
+        }
+
         if (e.target.matches('.fixed-income-real-amount, .fixed-income-received-toggle')) {
             const id = parseInt(e.target.dataset.id);
             const income = wallet.fixedIncomes.find(i => i.id === id);
@@ -843,7 +880,8 @@ export function initializeEventListeners() {
                 budgetData.payments[periodKey][subcategory] : 
                 budgetData.payments[periodKey];
             
-            const paymentType = paymentInfo?.type || 'expense_debit';
+            const defaultType = budgetData?.config?.paymentType || 'expense_debit';
+            const paymentType = paymentInfo?.type || defaultType;
             const txCategory = subcategory || category;
             
             // Buscar transacción existente para este gasto recurrente
@@ -865,6 +903,9 @@ export function initializeEventListeners() {
                     isRecurrentPayment: true,
                     periodKey: periodKey
                 };
+                if (paymentType === 'expense_credit' && budgetData?.config?.cardId) {
+                    txData.cardId = budgetData.config.cardId;
+                }
                 
                 if (txIndex > -1) {
                     // Actualizar transacción existente

@@ -18,6 +18,9 @@
 </head>
 <body class="bg-gray-900">
 
+    <!-- QA Environment Banner -->
+    <div id="qaEnvBanner" class="w-full bg-red-700 text-white text-center py-1 text-sm font-semibold">Ambiente QA</div>
+
     <div id="authScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900">
         <div class="card w-full max-w-md mx-4">
             <h2 class="text-2xl font-bold text-white text-center mb-6">Acceso al Panel Financiero</h2>
@@ -276,7 +279,7 @@
         
                                 <div class="card">
                                     <h3 class="font-bold text-white mb-3">Cupo T.C.</h3>
-                                    <p id="creditCardLimitInfo" class="text-2xl font-bold text-white">$0 / $0</p>
+                                    <div id="creditCardLimitList" class="space-y-2 text-sm"></div>
                                 </div>
         
                                 <div class="card">
@@ -419,9 +422,40 @@
                                     <div id="recurrentBudgetList" class="space-y-6"></div>
                                     <div class="mt-6 pt-6 border-t border-gray-700">
                                         <h3 class="text-md font-semibold text-white mb-2">Crear Nueva Categoría de Gasto Mensual</h3>
-                                        <div class="flex gap-2">
-                                            <input type="text" id="newRecurrentCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
-                                            <button id="addRecurrentCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
+                                        <div class="flex flex-col gap-3">
+                                            <div class="flex gap-2">
+                                                <input type="text" id="newRecurrentCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
+                                                <button id="addRecurrentCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
+                                            </div>
+                                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                                <div class="flex flex-col">
+                                                    <label for="newRecurrentPaymentType" class="text-sm text-gray-400">Método de pago</label>
+                                                    <select id="newRecurrentPaymentType" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm">
+                                                        <option value="expense_debit">Débito</option>
+                                                        <option value="expense_credit">Tarjeta de Crédito</option>
+                                                    </select>
+                                                </div>
+                                                <div id="newRecurrentPaymentCardWrapper" class="flex flex-col hidden">
+                                                    <label for="newRecurrentPaymentCardId" class="text-sm text-gray-400">Tarjeta</label>
+                                                    <select id="newRecurrentPaymentCardId" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm"></select>
+                                                </div>
+                                                <div class="flex items-center gap-3">
+                                                    <div class="flex flex-col w-32">
+                                                        <label for="newRecurrentPriority" class="text-sm text-gray-400">Prioridad</label>
+                                                        <input type="number" id="newRecurrentPriority" min="1" max="5" value="3" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm" />
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <input type="checkbox" id="newRecurrentFlexible" class="accent-indigo-500 w-4 h-4">
+                                                        <span class="text-sm text-gray-200">Flexible</span>
+                                                        <div class="relative group">
+                                                            <i class="fas fa-question-circle text-gray-400 cursor-pointer"></i>
+                                                            <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-3 w-64 border border-gray-600 z-10 top-6 left-0 shadow-lg">
+                                                                Permite ajustar este gasto si es necesario. Si está marcado como flexible, el monto puede reducirse para equilibrar el flujo del mes.
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -442,9 +476,40 @@
                                     <div id="variableBudgetList" class="space-y-6"></div>
                                      <div class="mt-6 pt-6 border-t border-gray-700">
                                         <h3 class="text-md font-semibold text-white mb-2">Crear Nueva Categoría de Gasto Variable</h3>
-                                        <div class="flex gap-2">
-                                            <input type="text" id="newVariableCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
-                                            <button id="addVariableCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
+                                        <div class="flex flex-col gap-3">
+                                            <div class="flex gap-2">
+                                                <input type="text" id="newVariableCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
+                                                <button id="addVariableCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
+                                            </div>
+                                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                                <div class="flex flex-col">
+                                                    <label for="newVariablePaymentType" class="text-sm text-gray-400">Método de pago</label>
+                                                    <select id="newVariablePaymentType" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm">
+                                                        <option value="expense_debit">Débito</option>
+                                                        <option value="expense_credit">Tarjeta de Crédito</option>
+                                                    </select>
+                                                </div>
+                                                <div id="newVariablePaymentCardWrapper" class="flex flex-col hidden">
+                                                    <label for="newVariablePaymentCardId" class="text-sm text-gray-400">Tarjeta</label>
+                                                    <select id="newVariablePaymentCardId" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm"></select>
+                                                </div>
+                                                <div class="flex items-center gap-3">
+                                                    <div class="flex flex-col w-32">
+                                                        <label for="newVariablePriority" class="text-sm text-gray-400">Prioridad</label>
+                                                        <input type="number" id="newVariablePriority" min="1" max="5" value="3" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm" />
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <input type="checkbox" id="newVariableFlexible" class="accent-indigo-500 w-4 h-4">
+                                                        <span class="text-sm text-gray-200">Flexible</span>
+                                                        <div class="relative group">
+                                                            <i class="fas fa-question-circle text-gray-400 cursor-pointer"></i>
+                                                            <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-3 w-64 border border-gray-600 z-10 top-6 left-0 shadow-lg">
+                                                                Permite ajustar este gasto si es necesario. Si está marcado como flexible, el monto puede reducirse para equilibrar el flujo del mes.
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

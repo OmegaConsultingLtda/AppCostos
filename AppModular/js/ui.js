@@ -411,6 +411,9 @@ export const renderBudgets = () => {
     const createBudgetHTML = (category, index, spentAmount) => {
         const budgetData = wallet.budgets[category];
         if (!budgetData.payments) budgetData.payments = {};
+        if (!budgetData.config) budgetData.config = { paymentType: 'expense_debit', cardId: null, priority: 3, flexible: false };
+        const cfg = budgetData.config;
+        const cards = wallet.creditCards || [];
         
         const subcategories = wallet.transactionCategories[category] || [];
         let subcategoryHTML = '';
@@ -439,7 +442,8 @@ export const renderBudgets = () => {
                     const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
                     const paidInfo = budgetData.payments?.[periodKey]?.[sub];
                     const paidAmount = paidInfo?.amount || '';
-                    const paymentType = paidInfo?.type || 'expense_debit';
+                    const paymentType = paidInfo?.type || cfg.paymentType || 'expense_debit';
+                    const paymentCardId = paidInfo?.cardId ?? cfg.cardId ?? null;
                     const isPaid = paidAmount > 0;
                     subPaymentHTML = `
                         <div class="mt-3 pt-3 border-t border-gray-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -454,6 +458,9 @@ export const renderBudgets = () => {
                                 <select data-category="${category}" data-subcategory="${sub}" class="recurrent-payment-type-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs w-24">
                                     <option value="expense_debit" ${paymentType === 'expense_debit' ? 'selected' : ''}>Débito</option>
                                     <option value="expense_credit" ${paymentType === 'expense_credit' ? 'selected' : ''}>Crédito</option>
+                                </select>
+                                <select data-category="${category}" data-subcategory="${sub}" class="recurrent-payment-card-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs w-28 ${paymentType === 'expense_credit' ? '' : 'hidden'}">
+                                    ${cards.map(c => `<option value="${c.id}" ${String(paymentCardId)===String(c.id)?'selected':''}>${c.name}</option>`).join('')}
                                 </select>
                                 <input type="text" inputmode="numeric" data-category="${category}" data-subcategory="${sub}" value="${paidAmount}" class="recurrent-paid-amount-input w-24 bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-xs text-right" placeholder="Monto">
                             </div>
@@ -493,7 +500,8 @@ export const renderBudgets = () => {
             const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
             const paidInfo = budgetData.payments?.[periodKey];
             const paidAmount = paidInfo?.amount || '';
-            const paymentType = paidInfo?.type || 'expense_debit';
+            const paymentType = paidInfo?.type || cfg.paymentType || 'expense_debit';
+            const paymentCardId = paidInfo?.cardId ?? cfg.cardId ?? null;
             const isPaid = paidAmount > 0;
             paymentHTML = `
                 <div class="mt-4 pt-4 border-t border-gray-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -510,6 +518,9 @@ export const renderBudgets = () => {
                             <select id="payment-type-${category}" data-category="${category}" class="recurrent-payment-type-select w-2/3 sm:w-auto bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-sm">
                                 <option value="expense_debit" ${paymentType === 'expense_debit' ? 'selected' : ''}>Débito</option>
                                 <option value="expense_credit" ${paymentType === 'expense_credit' ? 'selected' : ''}>Crédito</option>
+                            </select>
+                            <select data-category="${category}" class="recurrent-payment-card-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1 text-sm ${paymentType === 'expense_credit' ? '' : 'hidden'}">
+                                ${cards.map(c => `<option value="${c.id}" ${String(paymentCardId)===String(c.id)?'selected':''}>${c.name}</option>`).join('')}
                             </select>
                         </div>
                         <div class="flex items-center gap-2 w-full">
@@ -538,6 +549,32 @@ export const renderBudgets = () => {
                     <input type="text" inputmode="numeric" id="budget-${category}" data-category="${category}" value="${categoryBudgetValueForInput}" 
                            class="category-budget-input bg-gray-700 border border-gray-600 text-white rounded-lg p-1 w-32 text-sm text-right ${isCategoryTotalDisabled ? 'bg-gray-800' : ''}" 
                            ${isCategoryTotalDisabled ? 'disabled' : ''}>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 mb-3 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400">Método:</span>
+                    <select data-category="${category}" class="budget-config-payment-type-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1">
+                        <option value="expense_debit" ${cfg.paymentType==='expense_debit'?'selected':''}>Débito</option>
+                        <option value="expense_credit" ${cfg.paymentType==='expense_credit'?'selected':''}>Crédito</option>
+                    </select>
+                    <select data-category="${category}" class="budget-config-card-select bg-gray-700 border border-gray-600 text-white rounded-lg p-1 ${cfg.paymentType==='expense_credit'?'':'hidden'}">
+                        ${cards.map(c => `<option value="${c.id}" ${String(cfg.cardId)===String(c.id)?'selected':''}>${c.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400">Prioridad:</span>
+                    <input type="number" min="1" max="5" value="${cfg.priority ?? 3}" data-category="${category}" class="budget-config-priority-input bg-gray-700 border border-gray-600 text-white rounded-lg p-1 w-16" />
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" ${cfg.flexible ? 'checked' : ''} data-category="${category}" class="budget-config-flexible-checkbox accent-indigo-500 w-4 h-4" />
+                    <span class="text-gray-200">Flexible</span>
+                    <div class="relative group">
+                        <i class="fas fa-question-circle text-gray-400 cursor-pointer"></i>
+                        <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-3 w-64 border border-gray-600 z-10 top-6 left-0 shadow-lg">
+                            Permite ajustar este gasto si es necesario. Si está marcado como flexible, el monto puede reducirse para equilibrar el flujo del mes.
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="flex justify-between items-center mb-1 text-sm">

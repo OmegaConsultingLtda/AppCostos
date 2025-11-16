@@ -883,6 +883,7 @@ export function initializeEventListeners() {
             const defaultType = budgetData?.config?.paymentType || 'expense_debit';
             const paymentType = paymentInfo?.type || defaultType;
             const txCategory = subcategory || category;
+            const chosenCardId = (paymentInfo?.cardId != null) ? paymentInfo.cardId : (budgetData?.config?.cardId ?? null);
             
             // Buscar transacción existente para este gasto recurrente
             const txIndex = wallet.transactions.findIndex(tx => 
@@ -903,8 +904,8 @@ export function initializeEventListeners() {
                     isRecurrentPayment: true,
                     periodKey: periodKey
                 };
-                if (paymentType === 'expense_credit' && budgetData?.config?.cardId) {
-                    txData.cardId = budgetData.config.cardId;
+                if (paymentType === 'expense_credit' && chosenCardId) {
+                    txData.cardId = chosenCardId;
                 }
                 
                 if (txIndex > -1) {
@@ -945,7 +946,72 @@ export function initializeEventListeners() {
                 // Tipo de pago de categoría sin subcategoría
                 wallet.budgets[category].payments[periodKey].type = paymentType;
             }
+            // Mostrar/ocultar selector de tarjeta en la misma fila
+            const container = e.target.closest('.flex');
+            const cardSelect = container?.querySelector('.recurrent-payment-card-select');
+            if (cardSelect) {
+                if (paymentType === 'expense_credit') cardSelect.classList.remove('hidden');
+                else cardSelect.classList.add('hidden');
+            }
             
+            await updateDataInFirestore();
+            return;
+        }
+
+        // --- Tarjeta seleccionada para Gastos Recurrentes ---
+        if (e.target.matches('.recurrent-payment-card-select')) {
+            const category = e.target.dataset.category;
+            const subcategory = e.target.dataset.subcategory;
+            const cardId = e.target.value ? e.target.value : null;
+            if (!wallet.budgets[category]) wallet.budgets[category] = { total: null, subcategories: {}, payments: {} };
+            if (!wallet.budgets[category].payments) wallet.budgets[category].payments = {};
+            if (!wallet.budgets[category].payments[periodKey]) wallet.budgets[category].payments[periodKey] = {};
+            if (subcategory) {
+                if (!wallet.budgets[category].payments[periodKey][subcategory]) {
+                    wallet.budgets[category].payments[periodKey][subcategory] = {};
+                }
+                wallet.budgets[category].payments[periodKey][subcategory].cardId = cardId;
+            } else {
+                wallet.budgets[category].payments[periodKey].cardId = cardId;
+            }
+            await updateDataInFirestore();
+            return;
+        }
+
+        // --- Configuración por categoría: método, tarjeta, prioridad, flexible ---
+        if (e.target.matches('.budget-config-payment-type-select')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.paymentType = e.target.value;
+            if (e.target.value !== 'expense_credit') wallet.budgets[category].config.cardId = null;
+            await updateDataInFirestore();
+            ui.renderBudgets();
+            return;
+        }
+        if (e.target.matches('.budget-config-card-select')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.cardId = e.target.value || null;
+            await updateDataInFirestore();
+            return;
+        }
+        if (e.target.matches('.budget-config-priority-input')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            let val = parseInt(e.target.value);
+            if (isNaN(val) || val < 1) val = 1; if (val > 5) val = 5;
+            wallet.budgets[category].config.priority = val;
+            await updateDataInFirestore();
+            return;
+        }
+        if (e.target.matches('.budget-config-flexible-checkbox')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.flexible = !!e.target.checked;
             await updateDataInFirestore();
             return;
         }

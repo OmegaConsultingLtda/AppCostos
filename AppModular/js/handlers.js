@@ -150,23 +150,29 @@ export function initializeEventListeners() {
         }
     });
 
-    document.getElementById('bankDebitBalanceInput').addEventListener('input', (e) => {
-        const wallet = state.getCurrentWallet();
-        if(wallet) {
-            wallet.bankDebitBalance = ui.getNumericValue(e.target.value) || 0;
-            saveDataToFirestore(true);
-            ui.updateDashboard();
-        }
-    });
-    
-    document.getElementById('bankCreditBalanceInput').addEventListener('input', (e) => {
-        const wallet = state.getCurrentWallet();
-        if(wallet) {
-            wallet.bankCreditBalance = ui.getNumericValue(e.target.value) || 0;
-            saveDataToFirestore(true);
-            ui.updateDashboard();
-        }
-    });
+    const bankDebitEl = document.getElementById('bankDebitBalanceInput');
+    if (bankDebitEl) {
+        bankDebitEl.addEventListener('input', (e) => {
+            const wallet = state.getCurrentWallet();
+            if(wallet) {
+                wallet.bankDebitBalance = ui.getNumericValue(e.target.value) || 0;
+                saveDataToFirestore(true);
+                ui.updateDashboard();
+            }
+        });
+    }
+    // Nota: El input único de crédito fue reemplazado por inputs por tarjeta (.bank-credit-input)
+    const bankCreditEl = document.getElementById('bankCreditBalanceInput');
+    if (bankCreditEl) {
+        bankCreditEl.addEventListener('input', (e) => {
+            const wallet = state.getCurrentWallet();
+            if(wallet) {
+                wallet.bankCreditBalance = ui.getNumericValue(e.target.value) || 0;
+                saveDataToFirestore(true);
+                ui.updateDashboard();
+            }
+        });
+    }
 
     // --- Pestaña Movimientos y su Modal ---
     const transactionModal = document.getElementById('transactionModal');
@@ -179,12 +185,42 @@ export function initializeEventListeners() {
     const installmentModal = document.getElementById('installmentModal');
     const installmentForm = document.getElementById('installmentForm');
     const incomeAndBudgetsContent = document.getElementById('incomeAndBudgetsContent');
+
+    // Campos de tarjeta para compras en cuotas
+    const installmentTypeSelect = document.getElementById('installmentType');
+    const installmentCardWrapper = document.getElementById('installmentCardSelectWrapper');
+    const installmentCardSelect = document.getElementById('installmentCardId');
+    const populateInstallmentCards = (selectedId = null) => {
+        if (!installmentCardSelect) return;
+        const wallet = state.getCurrentWallet();
+        installmentCardSelect.innerHTML = '';
+        (wallet?.creditCards || []).forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            if (selectedId && String(selectedId) === String(c.id)) opt.selected = true;
+            installmentCardSelect.appendChild(opt);
+        });
+    };
+    const toggleInstallmentCardField = (ensurePopulate = true, selectedId = null) => {
+        if (!installmentTypeSelect || !installmentCardWrapper) return;
+        if (installmentTypeSelect.value === 'credit_card') {
+            installmentCardWrapper.classList.remove('hidden');
+            if (ensurePopulate) populateInstallmentCards(selectedId);
+        } else {
+            installmentCardWrapper.classList.add('hidden');
+        }
+    };
+    if (installmentTypeSelect) {
+        installmentTypeSelect.addEventListener('change', () => toggleInstallmentCardField());
+    }
     
     document.getElementById('addTransactionBtn').addEventListener('click', () => {
         document.getElementById('transactionModalTitle').textContent = "Nuevo Movimiento";
         transactionForm.reset();
         document.getElementById('transactionId').value = '';
         document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+        populateTransactionTypeOptions();
         handleTransactionTypeChange();
         transactionModal.classList.remove('hidden');
         transactionModal.classList.add('flex');
@@ -205,7 +241,7 @@ export function initializeEventListeners() {
                 document.getElementById('description').value = transaction.description;
                 document.getElementById('amount').value = transaction.amount;
                 document.getElementById('date').value = transaction.date;
-                document.getElementById('type').value = transaction.type;
+                populateTransactionTypeOptions(transaction.type, transaction.cardId || null);
                 document.getElementById('category').value = transaction.category;
                 handleTransactionTypeChange();
                 if (transaction.subcategory) {
@@ -271,11 +307,61 @@ export function initializeEventListeners() {
         });
     }
 
+    const populateTransactionTypeOptions = (selectedType = 'expense_debit', selectedCardId = null) => {
+        const typeSelect = document.getElementById('type');
+        typeSelect.innerHTML = '';
+        const stdOptions = [
+            { value: 'income', label: 'Ingreso' },
+            { value: 'expense_debit', label: 'Gasto (Débito)' }
+        ];
+        stdOptions.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.value; o.textContent = opt.label;
+            if (opt.value === selectedType) o.selected = true;
+            typeSelect.appendChild(o);
+        });
+        const wallet = state.getCurrentWallet();
+        const cards = wallet?.creditCards || [];
+        if (cards.length > 0) {
+            const group = document.createElement('optgroup');
+            group.label = 'Tarjetas de Crédito';
+            let anySelected = false;
+            cards.forEach(card => {
+                const o = document.createElement('option');
+                o.value = 'expense_credit';
+                o.textContent = card.name;
+                o.dataset.cardId = String(card.id);
+                if (selectedType === 'expense_credit' && String(selectedCardId) === String(card.id)) {
+                    o.selected = true;
+                    const hidden = document.getElementById('selectedCardId');
+                    if (hidden) hidden.value = card.id;
+                    anySelected = true;
+                }
+                group.appendChild(o);
+            });
+            typeSelect.appendChild(group);
+            if (selectedType === 'expense_credit' && !anySelected && group.children.length > 0) {
+                group.children[0].selected = true;
+                const hidden = document.getElementById('selectedCardId');
+                if (hidden) hidden.value = group.children[0].dataset.cardId;
+            }
+        }
+    };
+
     const handleTransactionTypeChange = () => {
         const typeSelect = document.getElementById('type');
         const categorySelect = document.getElementById('category');
         const addCategoryBtn = document.getElementById('addCategoryBtn');
         const currentCategory = categorySelect.value;
+        // Guardar cardId seleccionado (si aplica)
+        const selectedOption = typeSelect.options[typeSelect.selectedIndex];
+        if (selectedOption?.value === 'expense_credit' && selectedOption.dataset.cardId) {
+            const hidden = document.getElementById('selectedCardId');
+            if (hidden) hidden.value = selectedOption.dataset.cardId;
+        } else {
+            const hidden = document.getElementById('selectedCardId');
+            if (hidden) hidden.value = '';
+        }
         ui.populateCategoryDropdown(typeSelect.value);
         if (typeSelect.value === 'income') {
             categorySelect.value = 'Ingresos';
@@ -334,6 +420,16 @@ export function initializeEventListeners() {
             category: document.getElementById('category').value,
             subcategory: document.getElementById('subcategory').value || null
         };
+        if (transactionData.type === 'expense_credit') {
+            const cardIdStr = document.getElementById('selectedCardId').value;
+            if (!cardIdStr) {
+                alert('Por favor selecciona una tarjeta de crédito.');
+                return;
+            }
+            transactionData.cardId = parseInt(cardIdStr);
+        } else {
+            delete transactionData.cardId;
+        }
         const wallet = state.getCurrentWallet();
         if (id) {
             const index = wallet.transactions.findIndex(tx => tx.id === id);
@@ -392,6 +488,14 @@ export function initializeEventListeners() {
                 totalInstallments: ui.getNumericValue(document.getElementById('installmentTotal').value),
                 type: document.getElementById('installmentType').value
             };
+            if (installmentData.type === 'credit_card') {
+                const cardSelect = document.getElementById('installmentCardId');
+                const cardId = cardSelect ? parseInt(cardSelect.value) : null;
+                if (!cardId) { alert('Selecciona una tarjeta.'); return; }
+                installmentData.cardId = cardId;
+            } else {
+                delete installmentData.cardId;
+            }
             
             if (id) {
                 const item = wallet.installments.find(i => i.id === id);
@@ -400,6 +504,7 @@ export function initializeEventListeners() {
                     item.totalAmount = installmentData.totalAmount;
                     item.totalInstallments = installmentData.totalInstallments;
                     item.type = installmentData.type;
+                    item.cardId = installmentData.cardId;
                 }
             } else {
                 wallet.installments.push({ id: Date.now(), ...installmentData, paidInstallments: 0 });
@@ -454,6 +559,8 @@ export function initializeEventListeners() {
         document.getElementById('installmentId').value = '';
         document.getElementById('installmentModal').classList.remove('hidden');
         document.getElementById('installmentModal').classList.add('flex');
+        // Inicializar selector de tarjeta según tipo por defecto
+        toggleInstallmentCardField(true);
     });
 
     incomeAndBudgetsContent.addEventListener('click', async (e) => {
@@ -485,7 +592,17 @@ export function initializeEventListeners() {
             if (newCategory && !wallet.transactionCategories[newCategory]) {
                 handleAction(() => {
                     wallet.transactionCategories[newCategory] = [];
-                    wallet.budgets[newCategory] = { total: null, type: 'recurrent', subcategories: {}, payments: {} };
+                    const payType = (document.getElementById('newRecurrentPaymentType')?.value) || 'expense_debit';
+                    const cardIdVal = document.getElementById('newRecurrentPaymentCardId')?.value;
+                    const priority = parseInt(document.getElementById('newRecurrentPriority')?.value) || 3;
+                    const flexible = !!document.getElementById('newRecurrentFlexible')?.checked;
+                    wallet.budgets[newCategory] = { 
+                        total: null, 
+                        type: 'recurrent', 
+                        subcategories: {}, 
+                        payments: {},
+                        config: { paymentType: payType, cardId: payType === 'expense_credit' ? (cardIdVal ? parseInt(cardIdVal) : null) : null, priority, flexible }
+                    };
                     input.value = '';
                 });
             }
@@ -498,7 +615,16 @@ export function initializeEventListeners() {
             if (newCategory && !wallet.transactionCategories[newCategory]) {
                 handleAction(() => {
                     wallet.transactionCategories[newCategory] = [];
-                    wallet.budgets[newCategory] = { total: null, type: 'variable', subcategories: {} };
+                    const payType = (document.getElementById('newVariablePaymentType')?.value) || 'expense_debit';
+                    const cardIdVal = document.getElementById('newVariablePaymentCardId')?.value;
+                    const priority = parseInt(document.getElementById('newVariablePriority')?.value) || 3;
+                    const flexible = !!document.getElementById('newVariableFlexible')?.checked;
+                    wallet.budgets[newCategory] = { 
+                        total: null, 
+                        type: 'variable', 
+                        subcategories: {},
+                        config: { paymentType: payType, cardId: payType === 'expense_credit' ? (cardIdVal ? parseInt(cardIdVal) : null) : null, priority, flexible }
+                    };
                     input.value = '';
                 });
             }
@@ -597,6 +723,8 @@ export function initializeEventListeners() {
                 document.getElementById('installmentType').value = item.type;
                 document.getElementById('installmentModal').classList.remove('hidden');
                 document.getElementById('installmentModal').classList.add('flex');
+                // Mostrar y preseleccionar tarjeta si corresponde
+                toggleInstallmentCardField(true, item.cardId || null);
             }
         }
         
@@ -626,6 +754,24 @@ export function initializeEventListeners() {
         const wallet = state.getCurrentWallet();
         if (!wallet) return;
         const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
+
+        // Mostrar/ocultar selector de tarjeta al elegir método de pago al crear categoría
+        if (e.target.id === 'newRecurrentPaymentType') {
+            const wrapper = document.getElementById('newRecurrentPaymentCardWrapper');
+            if (wrapper) {
+                if (e.target.value === 'expense_credit') wrapper.classList.remove('hidden');
+                else wrapper.classList.add('hidden');
+            }
+            return;
+        }
+        if (e.target.id === 'newVariablePaymentType') {
+            const wrapper = document.getElementById('newVariablePaymentCardWrapper');
+            if (wrapper) {
+                if (e.target.value === 'expense_credit') wrapper.classList.remove('hidden');
+                else wrapper.classList.add('hidden');
+            }
+            return;
+        }
 
         if (e.target.matches('.fixed-income-real-amount, .fixed-income-received-toggle')) {
             const id = parseInt(e.target.dataset.id);
@@ -734,8 +880,10 @@ export function initializeEventListeners() {
                 budgetData.payments[periodKey][subcategory] : 
                 budgetData.payments[periodKey];
             
-            const paymentType = paymentInfo?.type || 'expense_debit';
+            const defaultType = budgetData?.config?.paymentType || 'expense_debit';
+            const paymentType = paymentInfo?.type || defaultType;
             const txCategory = subcategory || category;
+            const chosenCardId = (paymentInfo?.cardId != null) ? paymentInfo.cardId : (budgetData?.config?.cardId ?? null);
             
             // Buscar transacción existente para este gasto recurrente
             const txIndex = wallet.transactions.findIndex(tx => 
@@ -756,6 +904,9 @@ export function initializeEventListeners() {
                     isRecurrentPayment: true,
                     periodKey: periodKey
                 };
+                if (paymentType === 'expense_credit' && chosenCardId) {
+                    txData.cardId = chosenCardId;
+                }
                 
                 if (txIndex > -1) {
                     // Actualizar transacción existente
@@ -795,7 +946,72 @@ export function initializeEventListeners() {
                 // Tipo de pago de categoría sin subcategoría
                 wallet.budgets[category].payments[periodKey].type = paymentType;
             }
+            // Mostrar/ocultar selector de tarjeta en la misma fila
+            const container = e.target.closest('.flex');
+            const cardSelect = container?.querySelector('.recurrent-payment-card-select');
+            if (cardSelect) {
+                if (paymentType === 'expense_credit') cardSelect.classList.remove('hidden');
+                else cardSelect.classList.add('hidden');
+            }
             
+            await updateDataInFirestore();
+            return;
+        }
+
+        // --- Tarjeta seleccionada para Gastos Recurrentes ---
+        if (e.target.matches('.recurrent-payment-card-select')) {
+            const category = e.target.dataset.category;
+            const subcategory = e.target.dataset.subcategory;
+            const cardId = e.target.value ? e.target.value : null;
+            if (!wallet.budgets[category]) wallet.budgets[category] = { total: null, subcategories: {}, payments: {} };
+            if (!wallet.budgets[category].payments) wallet.budgets[category].payments = {};
+            if (!wallet.budgets[category].payments[periodKey]) wallet.budgets[category].payments[periodKey] = {};
+            if (subcategory) {
+                if (!wallet.budgets[category].payments[periodKey][subcategory]) {
+                    wallet.budgets[category].payments[periodKey][subcategory] = {};
+                }
+                wallet.budgets[category].payments[periodKey][subcategory].cardId = cardId;
+            } else {
+                wallet.budgets[category].payments[periodKey].cardId = cardId;
+            }
+            await updateDataInFirestore();
+            return;
+        }
+
+        // --- Configuración por categoría: método, tarjeta, prioridad, flexible ---
+        if (e.target.matches('.budget-config-payment-type-select')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.paymentType = e.target.value;
+            if (e.target.value !== 'expense_credit') wallet.budgets[category].config.cardId = null;
+            await updateDataInFirestore();
+            ui.renderBudgets();
+            return;
+        }
+        if (e.target.matches('.budget-config-card-select')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.cardId = e.target.value || null;
+            await updateDataInFirestore();
+            return;
+        }
+        if (e.target.matches('.budget-config-priority-input')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            let val = parseInt(e.target.value);
+            if (isNaN(val) || val < 1) val = 1; if (val > 5) val = 5;
+            wallet.budgets[category].config.priority = val;
+            await updateDataInFirestore();
+            return;
+        }
+        if (e.target.matches('.budget-config-flexible-checkbox')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.flexible = !!e.target.checked;
             await updateDataInFirestore();
             return;
         }
@@ -812,9 +1028,9 @@ export function initializeEventListeners() {
             const newWallet = {
                 id: Date.now(),
                 name: newName,
-                transactions: [], previousMonthTransactions: [], fixedIncomes: [], installments: [],
+                transactions: [], previousMonthTransactions: [], fixedIncomes: [], installments: [], creditCards: [],
                 transactionCategories: { 'Ingresos': [], '[Pago de Deuda]': [], 'Compras': [], 'Cuentas': [], 'Otros': [] },
-                budgets: {}, creditCardLimit: 0, bankDebitBalance: 0, bankCreditBalance: 0, manualSurplus: {}
+                budgets: {}, bankDebitBalance: 0, bankCreditBalance: 0, manualSurplus: {}
             };
             state.wallets.push(newWallet);
             state.setCurrentWalletId(newWallet.id);
@@ -848,13 +1064,92 @@ export function initializeEventListeners() {
         }
     });
 
-    document.getElementById('creditCardLimitInput').addEventListener('change', (e) => {
-        const wallet = state.getCurrentWallet();
-        if (wallet) {
-            wallet.creditCardLimit = ui.getNumericValue(e.target.value) || 0;
-            updateDataInFirestore();
-        }
-    });
+    // --- CRUD Tarjetas de Crédito ---
+    const creditCardList = document.getElementById('creditCardList');
+    const addCreditCardBtn = document.getElementById('addCreditCardBtn');
+    if (addCreditCardBtn) {
+        addCreditCardBtn.addEventListener('click', async () => {
+            const nameInput = document.getElementById('newCreditCardNameInput');
+            const name = (nameInput.value || '').trim();
+            if (!name) return;
+            const wallet = state.getCurrentWallet();
+            if (!wallet.creditCards) wallet.creditCards = [];
+            wallet.creditCards.push({ id: Date.now(), name, limit: 0, createdAt: Date.now(), updatedAt: Date.now() });
+            nameInput.value = '';
+            await updateDataInFirestore();
+            ui.renderSettings();
+        });
+    }
+
+    if (creditCardList) {
+        creditCardList.addEventListener('click', async (e) => {
+            const wallet = state.getCurrentWallet();
+            const btnEdit = e.target.closest('.edit-credit-card-btn');
+            const btnDelete = e.target.closest('.delete-credit-card-btn');
+            if (btnEdit) {
+                const id = parseInt(btnEdit.dataset.cardId);
+                const card = wallet.creditCards.find(c => c.id === id);
+                if (!card) return;
+                const newName = prompt('Nuevo nombre para la tarjeta:', card.name);
+                if (newName && newName.trim() !== '') {
+                    card.name = newName.trim();
+                    card.updatedAt = Date.now();
+                    await updateDataInFirestore();
+                    ui.renderSettings();
+                }
+                return;
+            }
+            if (btnDelete) {
+                const id = parseInt(btnDelete.dataset.cardId);
+                const card = wallet.creditCards.find(c => c.id === id);
+                if (!card) return;
+                ui.showConfirmationModal(`¿Seguro que quieres eliminar la tarjeta "${card.name}"?`, async () => {
+                    wallet.creditCards = wallet.creditCards.filter(c => c.id !== id);
+                    await updateDataInFirestore();
+                    ui.renderSettings();
+                });
+                return;
+            }
+        });
+
+        const persistLimit = async (inputEl) => {
+            const wallet = state.getCurrentWallet();
+            const id = parseInt(inputEl.dataset.cardId);
+            const card = wallet.creditCards.find(c => c.id === id);
+            if (!card) return;
+            card.limit = ui.getNumericValue(inputEl.value) || 0;
+            card.updatedAt = Date.now();
+            await updateDataInFirestore();
+            ui.renderSettings();
+            ui.updateDashboard();
+        };
+
+        creditCardList.addEventListener('change', async (e) => {
+            const input = e.target.closest('.credit-card-limit-input');
+            if (input) await persistLimit(input);
+        });
+        creditCardList.addEventListener('blur', async (e) => {
+            const input = e.target.closest('.credit-card-limit-input');
+            if (input) await persistLimit(input);
+        }, true);
+    }
+
+    // Conciliación por tarjeta - actualizar banco en cada fila
+    const reconCardsContainer = document.getElementById('reconciliationCreditCardsContainer');
+    if (reconCardsContainer) {
+        reconCardsContainer.addEventListener('change', async (e) => {
+            const input = e.target.closest('.bank-credit-input');
+            if (!input) return;
+            const wallet = state.getCurrentWallet();
+            const id = parseInt(input.dataset.cardId);
+            const card = wallet.creditCards.find(c => c.id === id);
+            if (!card) return;
+            card.bankAvailable = ui.getNumericValue(input.value) || 0;
+            card.updatedAt = Date.now();
+            await updateDataInFirestore();
+            ui.updateDashboard();
+        });
+    }
     
     document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
         state.setGeminiApiKey(document.getElementById('geminiApiKeyInput').value);

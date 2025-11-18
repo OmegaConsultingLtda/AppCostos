@@ -261,9 +261,25 @@ export function initializeEventListeners() {
                     ui.showConfirmationModal(
                         `¿Seguro que quieres eliminar el ${transaction.type === 'income' ? 'ingreso' : 'gasto'} "${transaction.description}"?`,
                         async () => {
+                            // Revertir pagos de cuotas si corresponde
+                            if (transaction.paidInstallmentIds && transaction.paidInstallmentIds.length > 0) {
+                                transaction.paidInstallmentIds.forEach(instId => {
+                                    const installment = wallet.installments.find(i => i.id === instId);
+                                    if (installment && installment.paymentHistory) {
+                                        Object.keys(installment.paymentHistory).forEach(key => {
+                                            if (installment.paymentHistory[key].transactionId === transaction.id) {
+                                                delete installment.paymentHistory[key];
+                                                if (installment.paidInstallments > 0) installment.paidInstallments--;
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+
                             wallet.transactions = wallet.transactions.filter(tx => tx.id !== id);
                             await updateDataInFirestore();
                             ui.renderTransactions();
+                            ui.updateDashboard();
                         }
                     );
             }
@@ -486,6 +502,7 @@ export function initializeEventListeners() {
                 description: document.getElementById('installmentDescription').value,
                 totalAmount: ui.getNumericValue(document.getElementById('installmentTotalAmount').value),
                 totalInstallments: ui.getNumericValue(document.getElementById('installmentTotal').value),
+                paidInstallments: ui.getNumericValue(document.getElementById('installmentPaidInstallments').value), // Read new field
                 type: document.getElementById('installmentType').value
             };
             if (installmentData.type === 'credit_card') {
@@ -503,11 +520,14 @@ export function initializeEventListeners() {
                     item.description = installmentData.description;
                     item.totalAmount = installmentData.totalAmount;
                     item.totalInstallments = installmentData.totalInstallments;
+                    item.paidInstallments = installmentData.paidInstallments; // Update paid installments
                     item.type = installmentData.type;
                     item.cardId = installmentData.cardId;
                 }
             } else {
-                wallet.installments.push({ id: Date.now(), ...installmentData, paidInstallments: 0 });
+                // For new items, use the input value if provided, otherwise default to 0
+                const initialPaid = installmentData.paidInstallments || 0;
+                wallet.installments.push({ id: Date.now(), ...installmentData, paidInstallments: initialPaid });
             }
             
             await updateDataInFirestore();
@@ -557,6 +577,7 @@ export function initializeEventListeners() {
         document.getElementById('installmentModalTitle').textContent = "Nueva Compra o Crédito";
         document.getElementById('installmentForm').reset();
         document.getElementById('installmentId').value = '';
+        document.getElementById('installmentPaidInstallments').value = '0'; // Default to 0
         document.getElementById('installmentModal').classList.remove('hidden');
         document.getElementById('installmentModal').classList.add('flex');
         // Inicializar selector de tarjeta según tipo por defecto
@@ -692,24 +713,9 @@ export function initializeEventListeners() {
         }
 
         // --- Acciones Cuotas ---
-        const unpayInstallmentBtn = e.target.closest('.unpay-installment-btn');
-        if (unpayInstallmentBtn) {
-            const id = parseInt(unpayInstallmentBtn.dataset.id);
-            handleAction(() => {
-                const item = wallet.installments.find(i => i.id === id);
-                if (item && item.paidInstallments > 0) item.paidInstallments--;
-            });
-        }
-
-        const payInstallmentBtn = e.target.closest('.pay-installment-btn');
-        if (payInstallmentBtn) {
-            const id = parseInt(payInstallmentBtn.dataset.id);
-            handleAction(() => {
-                const item = wallet.installments.find(i => i.id === id);
-                if (item && item.paidInstallments < item.totalInstallments) item.paidInstallments++;
-            });
-        }
-
+        // NOTA: Los botones +1/-1 antiguos se han eliminado en favor del toggle.
+        // Si aún existen en el DOM por alguna razón, los ignoramos o los eliminamos.
+        
         const editInstallmentBtn = e.target.closest('.edit-installment-btn');
         if (editInstallmentBtn) {
             const id = parseInt(editInstallmentBtn.dataset.id);
@@ -720,6 +726,7 @@ export function initializeEventListeners() {
                 document.getElementById('installmentDescription').value = item.description;
                 document.getElementById('installmentTotalAmount').value = item.totalAmount;
                 document.getElementById('installmentTotal').value = item.totalInstallments;
+                document.getElementById('installmentPaidInstallments').value = item.paidInstallments; // Populate new field
                 document.getElementById('installmentType').value = item.type;
                 document.getElementById('installmentModal').classList.remove('hidden');
                 document.getElementById('installmentModal').classList.add('flex');
@@ -738,12 +745,67 @@ export function initializeEventListeners() {
         }
 
         // --- Toggle para checkbox de "Recibido" en Ingresos Fijos ---
+        // NOTA: Se ha simplificado el HTML de los checkboxes de cuotas, por lo que el selector 'toggle-label' ya no aplica para ellos.
+        // Manejamos primero el caso de Cuotas (Installments) directamente sobre el checkbox o su contenedor.
+        
+        if (e.target.matches('.installment-paid-toggle') || e.target.closest('.installment-paid-toggle')) {
+            // Si es el checkbox directo (click habilitado)
+            const checkbox = e.target.matches('.installment-paid-toggle') ? e.target : e.target.closest('.installment-paid-toggle');
+            // La lógica de bloqueo ya está en el atributo 'disabled' del HTML, pero si queremos mostrar el alert
+            // necesitamos interceptar el click en un contenedor o manejar el intento de cambio.
+            // Como está disabled, el evento 'change' o 'click' no se dispara en el input.
+            // Para mostrar el mensaje en un elemento disabled, necesitamos un wrapper o manejar el click en el padre.
+            
+            // Sin embargo, el usuario pidió que "quede bloqueado". El atributo disabled cumple eso.
+            // Si queremos mostrar el mensaje, podemos usar el icono de candado.
+            
+            const id = parseInt(checkbox.dataset.id);
+            const item = wallet.installments.find(i => i.id === id);
+            const periodKey = `${state.selectedYear}-${state.selectedMonth}`;
+            
+            // Si es manual, permitir toggle con confirmación (si se está desmarcando)
+            if (!checkbox.checked) { // Estaba checked (ahora unchecked por el click) -> Intentando desmarcar
+                 if (confirm("¿Estás seguro de que quieres marcar esta cuota como NO pagada?")) {
+                    handleAction(() => {
+                        if (item.paidInstallments > 0) item.paidInstallments--;
+                        if (item.paymentHistory) delete item.paymentHistory[periodKey];
+                    });
+                } else {
+                    checkbox.checked = true; // Revertir
+                }
+            } else {
+                // Intentando marcar (estaba unchecked)
+                if (item.paidInstallments < item.totalInstallments) {
+                    handleAction(() => {
+                        item.paidInstallments++;
+                        if (!item.paymentHistory) item.paymentHistory = {};
+                        item.paymentHistory[periodKey] = {
+                            paid: true,
+                            date: new Date().toISOString().slice(0, 10),
+                            amount: item.totalAmount / item.totalInstallments,
+                            transactionId: null // Manual
+                        };
+                    });
+                } else {
+                    checkbox.checked = false; // Revertir si ya se pagaron todas
+                }
+            }
+            return;
+        }
+        
+        // Manejo de click en el icono de candado para mostrar el mensaje
+        if (e.target.matches('.fa-lock') && e.target.closest('td')) {
+             alert("Este pago está vinculado a una transacción de 'Pago EE.CC'. Para reversarlo, debes eliminar el movimiento correspondiente en la pestaña 'Movimientos'.");
+             return;
+        }
+
         const toggleLabel = e.target.closest('.toggle-label');
-        if (toggleLabel && toggleLabel.previousElementSibling?.classList.contains('fixed-income-received-toggle')) {
+        if (toggleLabel) {
             const checkbox = toggleLabel.previousElementSibling;
-            if (!checkbox.disabled) {
+            
+            // Caso normal: Ingresos Fijos u otros toggles (que sigan usando la estructura antigua)
+            if (checkbox && !checkbox.disabled && !checkbox.classList.contains('installment-paid-toggle')) {
                 checkbox.checked = !checkbox.checked;
-                // Dispara el evento 'change' manualmente
                 const changeEvent = new Event('change', { bubbles: true });
                 checkbox.dispatchEvent(changeEvent);
             }
@@ -1063,6 +1125,229 @@ export function initializeEventListeners() {
             });
         }
     });
+
+    // --- Registrar Pago Tarjeta de Crédito ---
+    const creditCardPaymentModal = document.getElementById('creditCardPaymentModal');
+    const creditCardPaymentForm = document.getElementById('creditCardPaymentForm');
+    const registerPaymentBtn = document.getElementById('registerCreditCardPaymentBtn');
+    const closePaymentModalBtn = document.getElementById('closeCreditCardPaymentModalBtn');
+    const paymentCardSelect = document.getElementById('paymentCardId');
+    const paymentInstallmentsContainer = document.getElementById('paymentInstallmentsContainer');
+    const paymentInstallmentsList = document.getElementById('paymentInstallmentsList');
+    const paymentLimitsLabel = document.getElementById('paymentLimitsLabel');
+
+    let currentPaymentMin = 0;
+    let currentPaymentMax = 0;
+
+    const updatePaymentLimits = () => {
+        const wallet = state.getCurrentWallet();
+        const cardId = parseInt(paymentCardSelect.value);
+        if (!cardId) return;
+
+        // 1. Calcular Deuda Spot (Compras del mes actual)
+        const monthlyTransactions = wallet.transactions.filter(t => {
+            const [year, month] = t.date.split('-').map(Number);
+            return month - 1 === state.selectedMonth && year === state.selectedYear;
+        });
+        const spotExpenses = monthlyTransactions
+            .filter(t => t.type === 'expense_credit' && t.cardId === cardId)
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // 2. Calcular Deuda de Cuotas Seleccionadas
+        let checkedInstallmentsTotal = 0;
+        const checkboxes = paymentInstallmentsList.querySelectorAll('input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            checkedInstallmentsTotal += parseFloat(cb.dataset.amount);
+        });
+
+        // 3. Definir Límites
+        // Mínimo: Suma de cuotas seleccionadas (si hay) o 1 (si hay deuda spot pero no cuotas seleccionadas)
+        // Máximo: Deuda Spot + Suma de cuotas seleccionadas
+        
+        currentPaymentMin = checkedInstallmentsTotal > 0 ? checkedInstallmentsTotal : (spotExpenses > 0 ? 1 : 0);
+        currentPaymentMax = spotExpenses + checkedInstallmentsTotal;
+
+        // Si no hay deuda de nada, min y max son 0
+        if (currentPaymentMax === 0) currentPaymentMin = 0;
+
+        paymentLimitsLabel.textContent = `Mín: ${ui.formatCurrency(currentPaymentMin)} - Máx: ${ui.formatCurrency(currentPaymentMax)}`;
+    };
+
+    const renderPaymentInstallments = () => {
+        const wallet = state.getCurrentWallet();
+        const cardId = parseInt(paymentCardSelect.value);
+        paymentInstallmentsList.innerHTML = '';
+        
+        if (!cardId) {
+            paymentInstallmentsContainer.classList.add('hidden');
+            return;
+        }
+
+        const activeInstallments = (wallet.installments || []).filter(i => 
+            i.type === 'credit_card' && 
+            i.cardId === cardId && 
+            i.paidInstallments < i.totalInstallments
+        );
+
+        if (activeInstallments.length === 0) {
+            paymentInstallmentsContainer.classList.add('hidden');
+        } else {
+            paymentInstallmentsContainer.classList.remove('hidden');
+            activeInstallments.forEach(inst => {
+                const monthlyAmount = inst.totalAmount / inst.totalInstallments;
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-gray-700/50 p-2 rounded';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <input type="checkbox" class="installment-payment-checkbox accent-indigo-500 w-4 h-4 shrink-0" 
+                            data-id="${inst.id}" 
+                            data-amount="${monthlyAmount}">
+                        <div class="text-xs text-gray-300 truncate">
+                            <span class="font-semibold block text-white">${inst.description}</span>
+                            <span>Cuota ${inst.paidInstallments + 1}/${inst.totalInstallments}</span>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-white shrink-0">${ui.formatCurrency(monthlyAmount)}</span>
+                `;
+                paymentInstallmentsList.appendChild(div);
+            });
+            
+            // Listeners para checkboxes
+            paymentInstallmentsList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updatePaymentLimits);
+            });
+        }
+        updatePaymentLimits();
+    };
+
+    if (paymentCardSelect) {
+        paymentCardSelect.addEventListener('change', renderPaymentInstallments);
+    }
+
+    if (registerPaymentBtn) {
+        registerPaymentBtn.addEventListener('click', () => {
+            const wallet = state.getCurrentWallet();
+            if (!wallet || !wallet.creditCards || wallet.creditCards.length === 0) {
+                alert('No tienes tarjetas de crédito registradas.');
+                return;
+            }
+            
+            paymentCardSelect.innerHTML = '';
+            wallet.creditCards.forEach(card => {
+                const opt = document.createElement('option');
+                opt.value = card.id;
+                opt.textContent = card.name;
+                paymentCardSelect.appendChild(opt);
+            });
+            
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
+            
+            renderPaymentInstallments(); // Cargar cuotas de la primera tarjeta
+            
+            creditCardPaymentModal.classList.remove('hidden');
+            creditCardPaymentModal.classList.add('flex');
+        });
+    }
+
+    if (closePaymentModalBtn) {
+        closePaymentModalBtn.addEventListener('click', () => {
+            creditCardPaymentModal.classList.add('hidden');
+            creditCardPaymentModal.classList.remove('flex');
+        });
+    }
+    
+    if (creditCardPaymentModal) {
+        creditCardPaymentModal.addEventListener('click', (e) => {
+            if (e.target === creditCardPaymentModal) {
+                creditCardPaymentModal.classList.add('hidden');
+                creditCardPaymentModal.classList.remove('flex');
+            }
+        });
+    }
+
+    if (creditCardPaymentForm) {
+        creditCardPaymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const wallet = state.getCurrentWallet();
+            const cardId = parseInt(paymentCardSelect.value);
+            const amount = ui.getNumericValue(document.getElementById('paymentAmount').value);
+            const date = document.getElementById('paymentDate').value;
+            
+            if (!amount || amount <= 0) {
+                alert('Ingresa un monto válido.');
+                return;
+            }
+
+            // Validar contra límites calculados
+            // Permitimos un pequeño margen de error por redondeo, o si el usuario quiere pagar de más (prepago)
+            // Pero según requerimiento: "pago minimo X y maximo Y".
+            if (amount < currentPaymentMin) {
+                alert(`El monto mínimo a pagar es ${ui.formatCurrency(currentPaymentMin)} (según selección).`);
+                return;
+            }
+            if (amount > currentPaymentMax) {
+                if (!confirm(`Estás pagando más del total calculado (${ui.formatCurrency(currentPaymentMax)}). ¿Deseas continuar?`)) {
+                    return;
+                }
+            }
+            
+            const card = wallet.creditCards.find(c => c.id === cardId);
+            const cardName = card ? card.name : 'Tarjeta';
+            
+            // Identificar cuotas pagadas
+            const checkedCheckboxes = paymentInstallmentsList.querySelectorAll('input[type="checkbox"]:checked');
+            let installmentPortion = 0;
+            const paidInstallmentIds = [];
+            const periodKey = `${state.selectedYear}-${state.selectedMonth}`;
+            const transactionId = Date.now();
+
+            checkedCheckboxes.forEach(cb => {
+                const instId = parseInt(cb.dataset.id);
+                const instAmount = parseFloat(cb.dataset.amount);
+                installmentPortion += instAmount;
+                paidInstallmentIds.push(instId);
+
+                // Actualizar estado de la cuota en la billetera
+                const installment = wallet.installments.find(i => i.id === instId);
+                if (installment && installment.paidInstallments < installment.totalInstallments) {
+                    installment.paidInstallments++;
+                    
+                    // Guardar historial de pago detallado
+                    if (!installment.paymentHistory) installment.paymentHistory = {};
+                    installment.paymentHistory[periodKey] = {
+                        paid: true,
+                        date: date,
+                        amount: instAmount,
+                        transactionId: transactionId
+                    };
+                }
+            });
+
+            // Crear transacción de gasto (pago de deuda)
+            const transaction = {
+                id: transactionId,
+                description: `Pago EE.CC - ${cardName}`,
+                amount: amount,
+                date: date,
+                type: 'expense_debit',
+                category: '[Pago de Deuda]',
+                subcategory: null,
+                cardId: cardId, // Referencia a la tarjeta pagada
+                installmentPaymentPortion: installmentPortion, // Guardar cuánto de este pago fue para cuotas
+                paidInstallmentIds: paidInstallmentIds // Guardar qué cuotas se pagaron
+            };
+            
+            wallet.transactions.push(transaction);
+            await updateDataInFirestore();
+            
+            creditCardPaymentModal.classList.add('hidden');
+            creditCardPaymentModal.classList.remove('flex');
+            ui.renderTransactions();
+            ui.renderBudgets(); // Para actualizar tabla de cuotas
+            ui.updateDashboard();
+        });
+    }
 
     // --- CRUD Tarjetas de Crédito ---
     const creditCardList = document.getElementById('creditCardList');

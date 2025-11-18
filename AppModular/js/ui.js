@@ -288,8 +288,12 @@ export const renderInstallments = () => {
         const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
         const remainingBalance = monthlyPayment * (item.totalInstallments - item.paidInstallments);
         const isPaidOff = item.paidInstallments >= item.totalInstallments;
-        const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
-        const isPaidThisMonth = item.payments && item.payments[periodKey];
+        
+        // New Logic: Check payment history for the current month
+        const periodKey = `${state.selectedYear}-${state.selectedMonth}`;
+        const paymentRecord = item.paymentHistory?.[periodKey];
+        const isPaidThisMonth = !!paymentRecord;
+        const isLocked = paymentRecord?.transactionId ? true : false;
 
         const row = document.createElement('tr');
         row.classList.add('table-row');
@@ -301,14 +305,14 @@ export const renderInstallments = () => {
             </td>
             <td class="p-3 text-right font-bold hidden sm:table-cell ${isPaidOff ? 'text-gray-500' : 'text-red-400'}">${formatCurrency(remainingBalance)}</td>
             <td class="p-3 text-center">
-                 <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                    <input type="checkbox" data-id="${item.id}" class="payment-toggle-checkbox toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" ${isPaidThisMonth ? 'checked' : ''}/>
-                    <label for="toggle-payment-${item.id}" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                 <div class="relative inline-block align-middle select-none transition duration-200 ease-in">
+                    <div class="flex items-center justify-center gap-2">
+                        <input type="checkbox" data-id="${item.id}" class="installment-paid-toggle w-5 h-5 text-green-600 bg-gray-700 border-gray-500 rounded focus:ring-green-500 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" ${isPaidThisMonth ? 'checked' : ''} ${isLocked ? 'disabled' : ''}/>
+                        ${isLocked ? '<i class="fas fa-lock text-xs text-gray-400" title="Pagado vía transacción"></i>' : ''}
+                    </div>
                 </div>
             </td>
             <td class="p-3 text-center space-x-1">
-                <button class="unpay-installment-btn bg-orange-600 hover:bg-orange-500 text-white font-bold py-1 px-2 rounded-lg text-xs" data-id="${item.id}" ${item.paidInstallments <= 0 ? 'disabled' : ''}>-1</button>
-                <button class="pay-installment-btn bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-2 rounded-lg text-xs" data-id="${item.id}" ${isPaidOff ? 'disabled' : ''}>+1</button>
                 <button class="edit-installment-btn text-yellow-400 hover:text-yellow-300" data-id="${item.id}"><i class="fas fa-pencil-alt"></i></button>
                 <button class="delete-installment-btn text-red-500 hover:text-red-400" data-id="${item.id}"><i class="fas fa-trash-alt"></i></button>
             </td>
@@ -855,6 +859,16 @@ export const updateDashboard = () => {
             return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
     }, 0);
 
+    // Calcular pagos realizados a tarjetas en este mes (para liberar cupo)
+    // Solo consideramos la parte del pago que NO fue para cuotas (porque las cuotas ya reducen la deuda al marcarse pagadas)
+    const monthlyCardPayments = monthlyTransactions
+        .filter(t => t.type === 'expense_debit' && t.category === '[Pago de Deuda]')
+        .reduce((sum, t) => {
+            const installmentPortion = t.installmentPaymentPortion || 0;
+            const spotPortion = t.amount - installmentPortion;
+            return sum + spotPortion;
+        }, 0);
+
     const totalCardsLimit = (wallet.creditCards || []).reduce((sum, c) => sum + (c.limit || 0), 0);
     const realCreditLimit = totalCardsLimit - creditCardInstallmentDebt;
     const creditCardLimitList = document.getElementById('creditCardLimitList');
@@ -867,7 +881,21 @@ export const updateDashboard = () => {
                     const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
                     return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
                 }, 0);
-            const realByCard = (card.limit || 0) - installmentsDebtByCard;
+            
+            // Pagos realizados a esta tarjeta específica (parte spot)
+            const cardPayments = monthlyTransactions
+                .filter(t => t.type === 'expense_debit' && t.category === '[Pago de Deuda]' && t.cardId === card.id)
+                .reduce((sum, t) => sum + (t.amount - (t.installmentPaymentPortion || 0)), 0);
+
+            const realByCard = (card.limit || 0) - installmentsDebtByCard + cardPayments; // + pagos libera cupo (pero installmentsDebt ya bajó, así que sumamos solo spot payments)
+            // Espera, realByCard es "Cupo Disponible".
+            // Cupo Disponible = Limite - DeudaTotal.
+            // DeudaTotal = (DeudaCuotas + DeudaSpot) - PagosSpot.
+            // Cupo Disponible = Limite - (DeudaCuotas + DeudaSpot - PagosSpot)
+            // Cupo Disponible = Limite - DeudaCuotas - DeudaSpot + PagosSpot.
+            // Aquí no tenemos "DeudaSpot" histórica por tarjeta fácilmente accesible en esta vista simplificada, 
+            // pero asumimos que el usuario quiere ver el cupo disponible "real" considerando lo que ha pagado.
+            
             const row = document.createElement('div');
             row.className = 'flex justify-between items-center bg-gray-800/40 p-2 rounded';
             row.innerHTML = `
@@ -878,9 +906,13 @@ export const updateDashboard = () => {
         });
     }
 
-    const availableCreditAfterUsage = realCreditLimit - monthlyCreditExpenses;
-    document.getElementById('usedCredit').textContent = formatCurrency(monthlyCreditExpenses);
+    // Used Credit = (Spot Expenses This Month + Total Installment Debt) - (Spot Payments This Month)
+    const usedCreditValue = (monthlyCreditExpenses + creditCardInstallmentDebt) - monthlyCardPayments;
+    const availableCreditAfterUsage = totalCardsLimit - usedCreditValue;
+
+    document.getElementById('usedCredit').textContent = formatCurrency(usedCreditValue);
     document.getElementById('availableCredit').textContent = formatCurrency(availableCreditAfterUsage);
+    
     // Desglose por tarjeta
     const perCardUsageContainer = document.getElementById('perCardCreditUsage');
     if (perCardUsageContainer) {
@@ -895,13 +927,20 @@ export const updateDashboard = () => {
                     const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
                     return sum + (monthlyPayment * (item.totalInstallments - item.paidInstallments));
                 }, 0);
-            const appAvailableByCard = (card.limit || 0) - installmentsDebtByCard - monthlyCreditByCard;
+            
+            const cardSpotPayments = monthlyTransactions
+                .filter(t => t.type === 'expense_debit' && t.category === '[Pago de Deuda]' && t.cardId === card.id)
+                .reduce((sum, t) => sum + (t.amount - (t.installmentPaymentPortion || 0)), 0);
+
+            const usedByCard = (monthlyCreditByCard + installmentsDebtByCard) - cardSpotPayments;
+            const appAvailableByCard = (card.limit || 0) - usedByCard;
+            
             const row = document.createElement('div');
             row.className = 'flex justify-between items-center text-sm bg-gray-800/40 p-2 rounded';
             row.innerHTML = `
                 <span class="text-gray-300">${card.name}</span>
                 <span>
-                    <span class="text-red-400 font-semibold mr-3">${formatCurrency(monthlyCreditByCard)}</span>
+                    <span class="text-red-400 font-semibold mr-3">${formatCurrency(usedByCard)}</span>
                     <span class="text-gray-400 mr-1">Disp.</span>
                     <span class="text-green-400 font-semibold">${formatCurrency(appAvailableByCard)}</span>
                 </span>`;
@@ -1024,6 +1063,74 @@ export const updateDashboard = () => {
                 <hr class="border-gray-700 last:hidden">
             `;
             comparisonContainer.appendChild(item);
+
+            const expandBtn = item.querySelector('.expand-comparison-btn');
+            const subContainer = item.querySelector('.subcategory-comparison-container');
+            
+            expandBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = subContainer.classList.contains('hidden');
+                const icon = expandBtn.querySelector('i');
+                icon.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+                
+                if (isHidden) {
+                    subContainer.classList.remove('hidden');
+                    if (subContainer.innerHTML === '') {
+                        const currentSubTotals = monthlyTransactions
+                            .filter(t => t.type.startsWith('expense') && t.category === category)
+                            .reduce((acc, tx) => {
+                                const sub = tx.subcategory || 'Sin Subcategoría';
+                                if (!acc[sub]) acc[sub] = 0;
+                                acc[sub] += tx.amount;
+                                return acc;
+                            }, {});
+
+                        const prevSubTotals = wallet.previousMonthTransactions
+                            .filter(t => t.type.startsWith('expense') && t.category === category)
+                            .reduce((acc, tx) => {
+                                const sub = tx.subcategory || 'Sin Subcategoría';
+                                if (!acc[sub]) acc[sub] = 0;
+                                acc[sub] += tx.amount;
+                                return acc;
+                            }, {});
+
+                        const allSubs = new Set([...Object.keys(currentSubTotals), ...Object.keys(prevSubTotals)]);
+                        
+                        if (allSubs.size === 0) {
+                             subContainer.innerHTML = '<p class="text-xs text-gray-500 italic">No hay detalles disponibles.</p>';
+                        } else {
+                            [...allSubs].sort().forEach(sub => {
+                                const curr = currentSubTotals[sub] || 0;
+                                const prev = prevSubTotals[sub] || 0;
+                                const diff = curr - prev;
+                                let subDiffText = '-';
+                                let subDiffColor = 'text-gray-500';
+                                
+                                if (diff > 0) {
+                                    subDiffText = `+${formatCurrency(diff)}`;
+                                    subDiffColor = 'text-red-400';
+                                } else if (diff < 0) {
+                                    subDiffText = `${formatCurrency(diff)}`;
+                                    subDiffColor = 'text-green-400';
+                                }
+
+                                const subItem = document.createElement('div');
+                                subItem.className = 'flex justify-between items-center text-xs';
+                                subItem.innerHTML = `
+                                    <span class="text-gray-300">${sub}</span>
+                                    <div class="text-right">
+                                        <div class="text-white font-medium">${formatCurrency(curr)}</div>
+                                        <div class="${subDiffColor} text-[10px]">${subDiffText}</div>
+                                    </div>
+                                `;
+                                subContainer.appendChild(subItem);
+                            });
+                        }
+                    }
+                } else {
+                    subContainer.classList.add('hidden');
+                }
+            });
         });
     }
 };

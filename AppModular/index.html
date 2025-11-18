@@ -18,9 +18,6 @@
 </head>
 <body class="bg-gray-900">
 
-    <!-- QA Environment Banner -->
-    <div id="qaEnvBanner" class="w-full bg-red-700 text-white text-center py-1 text-sm font-semibold">Ambiente QA</div>
-
     <div id="authScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900">
         <div class="card w-full max-w-md mx-4">
             <h2 class="text-2xl font-bold text-white text-center mb-6">Acceso al Panel Financiero</h2>
@@ -99,7 +96,7 @@
                             <i class="fas fa-chart-pie fa-fw"></i><span class="hidden sm:inline"> Resumen</span>
                         </button>
                         <button id="transactionsTabBtn" class="tab-inactive flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-exchange-alt fa-fw"></i><span class="hidden sm:inline"> Movimientos QA prueba</span>
+                            <i class="fas fa-exchange-alt fa-fw"></i><span class="hidden sm:inline"> Movimientos</span>
                         </button>
                         <button id="incomeAndBudgetsTabBtn" class="tab-inactive flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
                             <i class="fas fa-tasks fa-fw"></i><span class="hidden sm:inline"> Presupuestos y Cuotas</span>
@@ -279,7 +276,7 @@
         
                                 <div class="card">
                                     <h3 class="font-bold text-white mb-3">Cupo T.C.</h3>
-                                    <div id="creditCardLimitList" class="space-y-2 text-sm"></div>
+                                    <p id="creditCardLimitInfo" class="text-2xl font-bold text-white">$0 / $0</p>
                                 </div>
         
                                 <div class="card">
@@ -299,7 +296,6 @@
                                             <p id="availableCredit" class="text-2xl font-bold text-green-400">$0</p>
                                         </div>
                                     </div>
-                                    <div id="perCardCreditUsage" class="mt-4 space-y-2"></div>
                                 </div>
         
         
@@ -332,10 +328,22 @@
                                         </div>
                                     </div>
                         
-                                    <!-- Conciliación Crédito (por tarjeta) -->
+                                    <!-- Conciliación Crédito -->
                                     <div class="space-y-3 text-sm">
-                                         <h4 class="font-semibold text-purple-300 mb-2">Tarjetas de Crédito</h4>
-                                         <div id="reconciliationCreditCardsContainer" class="space-y-3"></div>
+                                         <h4 class="font-semibold text-purple-300 mb-2">Tarjeta de Crédito</h4>
+                                         <div class="flex justify-between items-center">
+                                            <span class="text-gray-400">Cupo Disponible App:</span>
+                                            <span id="reconciliationAppCreditBalance" class="font-semibold text-white">$0</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <label for="bankCreditBalanceInput" class="text-gray-400">Cupo Disponible (según banco):</label>
+                                            <input type="text" inputmode="numeric" id="bankCreditBalanceInput" placeholder="Ingresa el monto" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-40 text-sm text-right">
+                                        </div>
+                                        <hr class="border-gray-600">
+                                        <div id="reconciliationCreditDifference" class="flex justify-between items-center p-3 rounded-lg bg-gray-800 transition-colors duration-300">
+                                            <span class="font-semibold">Diferencia Crédito:</span>
+                                            <span id="differenceCreditAmount" class="font-bold text-lg">$0</span>
+                                        </div>
                                     </div>
                                 </div>
                                
@@ -422,40 +430,9 @@
                                     <div id="recurrentBudgetList" class="space-y-6"></div>
                                     <div class="mt-6 pt-6 border-t border-gray-700">
                                         <h3 class="text-md font-semibold text-white mb-2">Crear Nueva Categoría de Gasto Mensual</h3>
-                                        <div class="flex flex-col gap-3">
-                                            <div class="flex gap-2">
-                                                <input type="text" id="newRecurrentCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
-                                                <button id="addRecurrentCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
-                                            </div>
-                                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                                                <div class="flex flex-col">
-                                                    <label for="newRecurrentPaymentType" class="text-sm text-gray-400">Método de pago</label>
-                                                    <select id="newRecurrentPaymentType" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm">
-                                                        <option value="expense_debit">Débito</option>
-                                                        <option value="expense_credit">Tarjeta de Crédito</option>
-                                                    </select>
-                                                </div>
-                                                <div id="newRecurrentPaymentCardWrapper" class="flex flex-col hidden">
-                                                    <label for="newRecurrentPaymentCardId" class="text-sm text-gray-400">Tarjeta</label>
-                                                    <select id="newRecurrentPaymentCardId" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm"></select>
-                                                </div>
-                                                <div class="flex items-center gap-3">
-                                                    <div class="flex flex-col w-32">
-                                                        <label for="newRecurrentPriority" class="text-sm text-gray-400">Prioridad</label>
-                                                        <input type="number" id="newRecurrentPriority" min="1" max="5" value="3" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm" />
-                                                    </div>
-                                                    <div class="flex items-center gap-2">
-                                                        <input type="checkbox" id="newRecurrentFlexible" class="accent-indigo-500 w-4 h-4">
-                                                        <span class="text-sm text-gray-200">Flexible</span>
-                                                        <div class="relative group">
-                                                            <i class="fas fa-question-circle text-gray-400 cursor-pointer"></i>
-                                                            <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-3 w-64 border border-gray-600 z-10 top-6 left-0 shadow-lg">
-                                                                Permite ajustar este gasto si es necesario. Si está marcado como flexible, el monto puede reducirse para equilibrar el flujo del mes.
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="newRecurrentCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
+                                            <button id="addRecurrentCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
                                         </div>
                                     </div>
                                 </div>
@@ -476,40 +453,9 @@
                                     <div id="variableBudgetList" class="space-y-6"></div>
                                      <div class="mt-6 pt-6 border-t border-gray-700">
                                         <h3 class="text-md font-semibold text-white mb-2">Crear Nueva Categoría de Gasto Variable</h3>
-                                        <div class="flex flex-col gap-3">
-                                            <div class="flex gap-2">
-                                                <input type="text" id="newVariableCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
-                                                <button id="addVariableCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
-                                            </div>
-                                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                                                <div class="flex flex-col">
-                                                    <label for="newVariablePaymentType" class="text-sm text-gray-400">Método de pago</label>
-                                                    <select id="newVariablePaymentType" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm">
-                                                        <option value="expense_debit">Débito</option>
-                                                        <option value="expense_credit">Tarjeta de Crédito</option>
-                                                    </select>
-                                                </div>
-                                                <div id="newVariablePaymentCardWrapper" class="flex flex-col hidden">
-                                                    <label for="newVariablePaymentCardId" class="text-sm text-gray-400">Tarjeta</label>
-                                                    <select id="newVariablePaymentCardId" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm"></select>
-                                                </div>
-                                                <div class="flex items-center gap-3">
-                                                    <div class="flex flex-col w-32">
-                                                        <label for="newVariablePriority" class="text-sm text-gray-400">Prioridad</label>
-                                                        <input type="number" id="newVariablePriority" min="1" max="5" value="3" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm" />
-                                                    </div>
-                                                    <div class="flex items-center gap-2">
-                                                        <input type="checkbox" id="newVariableFlexible" class="accent-indigo-500 w-4 h-4">
-                                                        <span class="text-sm text-gray-200">Flexible</span>
-                                                        <div class="relative group">
-                                                            <i class="fas fa-question-circle text-gray-400 cursor-pointer"></i>
-                                                            <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-3 w-64 border border-gray-600 z-10 top-6 left-0 shadow-lg">
-                                                                Permite ajustar este gasto si es necesario. Si está marcado como flexible, el monto puede reducirse para equilibrar el flujo del mes.
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="newVariableCategoryInput" placeholder="Nombre de la categoría" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
+                                            <button id="addVariableCategoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Agregar</button>
                                         </div>
                                     </div>
                                 </div>
@@ -584,19 +530,12 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="card md:col-span-2">
-                                <h2 class="text-xl font-bold text-white mb-2">Gestionar Tarjetas de Crédito</h2>
-                                <p class="text-sm text-gray-400 mb-4">Crea, edita o elimina tarjetas. Ajusta el cupo por tarjeta debajo de cada una.</p>
-                                <div class="space-y-3 mb-6">
-                                    <h3 class="text-md font-semibold text-white">Tarjetas Existentes</h3>
-                                    <ul id="creditCardList" class="space-y-2"></ul>
-                                </div>
-                                <div>
-                                    <h3 class="text-md font-semibold text-white mb-2">Crear Nueva Tarjeta</h3>
-                                    <div class="flex flex-col sm:flex-row gap-2">
-                                        <input type="text" id="newCreditCardNameInput" placeholder="Nombre de la nueva tarjeta" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
-                                        <button id="addCreditCardBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Crear</button>
-                                    </div>
+    
+                            <div class="card">
+                                <h2 class="text-xl font-bold text-white mb-4">Cupo Tarjeta de Crédito</h2>
+                                 <div class="flex items-center gap-4">
+                                    <label for="creditCardLimitInput" class="text-sm text-gray-400">Cupo Total:</label>
+                                    <input type="text" inputmode="numeric" id="creditCardLimitInput" placeholder="Cupo total" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 w-full">
                                 </div>
                             </div>
                             <div class="card md:col-span-2">
@@ -629,7 +568,6 @@
             </div>
             <form id="transactionForm">
                 <input type="hidden" id="transactionId">
-                <input type="hidden" id="selectedCardId">
                 <div class="mb-4">
                     <label for="description" class="block text-sm font-medium text-gray-300 mb-1">Descripción</label>
                     <input type="text" id="description" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2" required>
@@ -649,7 +587,9 @@
                     <div>
                         <label for="type" class="block text-sm font-medium text-gray-300 mb-1">Tipo</label>
                         <select id="type" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2">
-                            <!-- Opciones se poblarán dinámicamente -->
+                            <option value="income">Ingreso</option>
+                            <option value="expense_debit">Gasto (Débito)</option>
+                            <option value="expense_credit">Gasto (Crédito)</option>
                         </select>
                     </div>
                      <div>
@@ -723,10 +663,6 @@
                         <input type="text" inputmode="numeric" id="installmentTotalAmount" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2" required>
                     </div>
                 </div>
-                <div id="installmentCardSelectWrapper" class="mb-4 hidden">
-                    <label for="installmentCardId" class="block text-sm font-medium text-gray-300 mb-1">Tarjeta</label>
-                    <select id="installmentCardId" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2"></select>
-                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
                          <label for="installmentTotal" class="block text-sm font-medium text-gray-300 mb-1">Nº de Cuotas</label>
@@ -786,4 +722,3 @@
     <script type="module" src="./js/main.js"></script>
 </body>
 </html>
-

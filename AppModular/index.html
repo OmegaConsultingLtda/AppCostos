@@ -739,6 +739,10 @@
                          <label for="installmentTotal" class="block text-sm font-medium text-gray-300 mb-1">Nº de Cuotas</label>
                          <input type="text" inputmode="numeric" id="installmentTotal" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2" required>
                     </div>
+                    <div>
+                         <label for="installmentPaidInstallments" class="block text-sm font-medium text-gray-300 mb-1">Cuotas Pagadas</label>
+                         <input type="text" inputmode="numeric" id="installmentPaidInstallments" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2" placeholder="0">
+                    </div>
                 </div>
                 <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Guardar</button>
             </form>
@@ -777,7 +781,20 @@
             </div>
             <form id="creditCardPaymentForm">
                 <div class="mb-4">
-                    <label for="paymentAmount" class="block text-sm font-medium text-gray-300 mb-1">Monto Pagado</label>
+                    <label for="paymentCardId" class="block text-sm font-medium text-gray-300 mb-1">Tarjeta a Pagar</label>
+                    <select id="paymentCardId" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2" required></select>
+                </div>
+                
+                <div id="paymentInstallmentsContainer" class="mb-4 hidden">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Cuotas a Pagar (Este Mes)</label>
+                    <div id="paymentInstallmentsList" class="space-y-2 max-h-40 overflow-y-auto bg-gray-800 p-2 rounded-lg border border-gray-600"></div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="paymentAmount" class="block text-sm font-medium text-gray-300">Monto Pagado</label>
+                        <span id="paymentLimitsLabel" class="text-xs text-gray-400"></span>
+                    </div>
                     <input type="text" inputmode="numeric" id="paymentAmount" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2" required>
                 </div>
                 <div class="mb-6">

@@ -2,7 +2,7 @@
   "hosting": [
     {
       "target": "prod",
-      "public": "AppModular",
+      "public": ".",
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -11,7 +11,7 @@
     },
     {
       "target": "qa",
-      "public": "AppModular",
+      "public": ".",
       "ignore": [
         "firebase.json",
         "**/.*",

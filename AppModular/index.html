@@ -19,7 +19,7 @@
 <body class="bg-gray-900">
 
     <!-- QA Environment Banner -->
-    <div id="qaEnvBanner" class="w-full bg-red-700 text-white text-center py-1 text-sm font-semibold">Ambiente QA</div>
+    <div id="qaEnvBanner" class="hidden w-full bg-red-700 text-white text-center py-1 text-sm font-semibold">Ambiente QA</div>
 
     <div id="authScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900">
         <div class="card w-full max-w-md mx-4">
@@ -96,21 +96,28 @@
                     <nav class="flex flex-row md:flex-col gap-1 md:gap-0 md:space-y-2 overflow-x-auto pb-2 md:pb-0" aria-label="Tabs">
                         <!-- RESPONSIVE CHANGE: Buttons shrink to 0 to prevent squishing in flex row -->
                         <button id="dashboardTabBtn" class="tab-active flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-chart-pie fa-fw"></i><span class="hidden sm:inline"> Resumen</span>
+                            <i class="fas fa-chart-pie fa-fw"></i><span class="hidden sm:inline">Resumen</span>
                         </button>
                         <button id="transactionsTabBtn" class="tab-inactive flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-exchange-alt fa-fw"></i><span class="hidden sm:inline"> Movimientos QA prueba</span>
+                            <i class="fas fa-exchange-alt fa-fw"></i><span class="hidden sm:inline">Movimientos</span>
                         </button>
                         <button id="incomeAndBudgetsTabBtn" class="tab-inactive flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-tasks fa-fw"></i><span class="hidden sm:inline"> Presupuestos y Cuotas</span>
+                            <i class="fas fa-tasks fa-fw"></i><span class="hidden sm:inline">Presupuestos y Cuotas</span>
                         </button>
                         <button id="aiAnalysisTabBtn" class="tab-inactive flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-brain fa-fw"></i><span class="hidden sm:inline"> Análisis IA</span>
+                            <i class="fas fa-brain fa-fw"></i><span class="hidden sm:inline">Análisis IA</span>
                         </button>
                         <button id="settingsTabBtn" class="tab-inactive flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200">
-                            <i class="fas fa-cog fa-fw"></i><span class="hidden sm:inline"> Ajustes</span>
+                            <i class="fas fa-cog fa-fw"></i><span class="hidden sm:inline">Ajustes</span>
                         </button>
                     </nav>
+                    
+                    <!-- QA Tools Panel -->
+                    <div id="qaToolsPanel" class="hidden mt-4 p-3 rounded-lg border border-dashed border-red-500/50 bg-red-900/20 flex-col gap-2 text-center">
+                        <h3 class="font-bold text-white text-sm">QA Tools</h3>
+                        <button id="qaLoadSeedDataBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-xs w-full">Cargar Datos de Prueba</button>
+                        <button id="qaCopyMonthBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-xs w-full">Copiar Mes Anterior</button>
+                    </div>
                 </aside>
         
                 <main class="flex-grow">
@@ -786,4 +793,5 @@
     <script type="module" src="./js/main.js"></script>
 </body>
 </html>
+
 

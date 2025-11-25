@@ -150,23 +150,29 @@ export function initializeEventListeners() {
         }
     });
 
-    document.getElementById('bankDebitBalanceInput').addEventListener('input', (e) => {
-        const wallet = state.getCurrentWallet();
-        if(wallet) {
-            wallet.bankDebitBalance = ui.getNumericValue(e.target.value) || 0;
-            saveDataToFirestore(true);
-            ui.updateDashboard();
-        }
-    });
-    
-    document.getElementById('bankCreditBalanceInput').addEventListener('input', (e) => {
-        const wallet = state.getCurrentWallet();
-        if(wallet) {
-            wallet.bankCreditBalance = ui.getNumericValue(e.target.value) || 0;
-            saveDataToFirestore(true);
-            ui.updateDashboard();
-        }
-    });
+    const bankDebitEl = document.getElementById('bankDebitBalanceInput');
+    if (bankDebitEl) {
+        bankDebitEl.addEventListener('input', (e) => {
+            const wallet = state.getCurrentWallet();
+            if(wallet) {
+                wallet.bankDebitBalance = ui.getNumericValue(e.target.value) || 0;
+                saveDataToFirestore(true);
+                ui.updateDashboard();
+            }
+        });
+    }
+    // Nota: El input único de crédito fue reemplazado por inputs por tarjeta (.bank-credit-input)
+    const bankCreditEl = document.getElementById('bankCreditBalanceInput');
+    if (bankCreditEl) {
+        bankCreditEl.addEventListener('input', (e) => {
+            const wallet = state.getCurrentWallet();
+            if(wallet) {
+                wallet.bankCreditBalance = ui.getNumericValue(e.target.value) || 0;
+                saveDataToFirestore(true);
+                ui.updateDashboard();
+            }
+        });
+    }
 
     // --- Pestaña Movimientos y su Modal ---
     const transactionModal = document.getElementById('transactionModal');
@@ -179,12 +185,42 @@ export function initializeEventListeners() {
     const installmentModal = document.getElementById('installmentModal');
     const installmentForm = document.getElementById('installmentForm');
     const incomeAndBudgetsContent = document.getElementById('incomeAndBudgetsContent');
+
+    // Campos de tarjeta para compras en cuotas
+    const installmentTypeSelect = document.getElementById('installmentType');
+    const installmentCardWrapper = document.getElementById('installmentCardSelectWrapper');
+    const installmentCardSelect = document.getElementById('installmentCardId');
+    const populateInstallmentCards = (selectedId = null) => {
+        if (!installmentCardSelect) return;
+        const wallet = state.getCurrentWallet();
+        installmentCardSelect.innerHTML = '';
+        (wallet?.creditCards || []).forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            if (selectedId && String(selectedId) === String(c.id)) opt.selected = true;
+            installmentCardSelect.appendChild(opt);
+        });
+    };
+    const toggleInstallmentCardField = (ensurePopulate = true, selectedId = null) => {
+        if (!installmentTypeSelect || !installmentCardWrapper) return;
+        if (installmentTypeSelect.value === 'credit_card') {
+            installmentCardWrapper.classList.remove('hidden');
+            if (ensurePopulate) populateInstallmentCards(selectedId);
+        } else {
+            installmentCardWrapper.classList.add('hidden');
+        }
+    };
+    if (installmentTypeSelect) {
+        installmentTypeSelect.addEventListener('change', () => toggleInstallmentCardField());
+    }
     
     document.getElementById('addTransactionBtn').addEventListener('click', () => {
         document.getElementById('transactionModalTitle').textContent = "Nuevo Movimiento";
         transactionForm.reset();
         document.getElementById('transactionId').value = '';
         document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+        populateTransactionTypeOptions();
         handleTransactionTypeChange();
         transactionModal.classList.remove('hidden');
         transactionModal.classList.add('flex');
@@ -205,7 +241,7 @@ export function initializeEventListeners() {
                 document.getElementById('description').value = transaction.description;
                 document.getElementById('amount').value = transaction.amount;
                 document.getElementById('date').value = transaction.date;
-                document.getElementById('type').value = transaction.type;
+                populateTransactionTypeOptions(transaction.type, transaction.cardId || null);
                 document.getElementById('category').value = transaction.category;
                 handleTransactionTypeChange();
                 if (transaction.subcategory) {
@@ -225,9 +261,25 @@ export function initializeEventListeners() {
                     ui.showConfirmationModal(
                         `¿Seguro que quieres eliminar el ${transaction.type === 'income' ? 'ingreso' : 'gasto'} "${transaction.description}"?`,
                         async () => {
+                            // Revertir pagos de cuotas si corresponde
+                            if (transaction.paidInstallmentIds && transaction.paidInstallmentIds.length > 0) {
+                                transaction.paidInstallmentIds.forEach(instId => {
+                                    const installment = wallet.installments.find(i => i.id === instId);
+                                    if (installment && installment.paymentHistory) {
+                                        Object.keys(installment.paymentHistory).forEach(key => {
+                                            if (installment.paymentHistory[key].transactionId === transaction.id) {
+                                                delete installment.paymentHistory[key];
+                                                if (installment.paidInstallments > 0) installment.paidInstallments--;
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+
                             wallet.transactions = wallet.transactions.filter(tx => tx.id !== id);
                             await updateDataInFirestore();
                             ui.renderTransactions();
+                            ui.updateDashboard();
                         }
                     );
             }
@@ -271,11 +323,61 @@ export function initializeEventListeners() {
         });
     }
 
+    const populateTransactionTypeOptions = (selectedType = 'expense_debit', selectedCardId = null) => {
+        const typeSelect = document.getElementById('type');
+        typeSelect.innerHTML = '';
+        const stdOptions = [
+            { value: 'income', label: 'Ingreso' },
+            { value: 'expense_debit', label: 'Gasto (Débito)' }
+        ];
+        stdOptions.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.value; o.textContent = opt.label;
+            if (opt.value === selectedType) o.selected = true;
+            typeSelect.appendChild(o);
+        });
+        const wallet = state.getCurrentWallet();
+        const cards = wallet?.creditCards || [];
+        if (cards.length > 0) {
+            const group = document.createElement('optgroup');
+            group.label = 'Tarjetas de Crédito';
+            let anySelected = false;
+            cards.forEach(card => {
+                const o = document.createElement('option');
+                o.value = 'expense_credit';
+                o.textContent = card.name;
+                o.dataset.cardId = String(card.id);
+                if (selectedType === 'expense_credit' && String(selectedCardId) === String(card.id)) {
+                    o.selected = true;
+                    const hidden = document.getElementById('selectedCardId');
+                    if (hidden) hidden.value = card.id;
+                    anySelected = true;
+                }
+                group.appendChild(o);
+            });
+            typeSelect.appendChild(group);
+            if (selectedType === 'expense_credit' && !anySelected && group.children.length > 0) {
+                group.children[0].selected = true;
+                const hidden = document.getElementById('selectedCardId');
+                if (hidden) hidden.value = group.children[0].dataset.cardId;
+            }
+        }
+    };
+
     const handleTransactionTypeChange = () => {
         const typeSelect = document.getElementById('type');
         const categorySelect = document.getElementById('category');
         const addCategoryBtn = document.getElementById('addCategoryBtn');
         const currentCategory = categorySelect.value;
+        // Guardar cardId seleccionado (si aplica)
+        const selectedOption = typeSelect.options[typeSelect.selectedIndex];
+        if (selectedOption?.value === 'expense_credit' && selectedOption.dataset.cardId) {
+            const hidden = document.getElementById('selectedCardId');
+            if (hidden) hidden.value = selectedOption.dataset.cardId;
+        } else {
+            const hidden = document.getElementById('selectedCardId');
+            if (hidden) hidden.value = '';
+        }
         ui.populateCategoryDropdown(typeSelect.value);
         if (typeSelect.value === 'income') {
             categorySelect.value = 'Ingresos';
@@ -334,6 +436,16 @@ export function initializeEventListeners() {
             category: document.getElementById('category').value,
             subcategory: document.getElementById('subcategory').value || null
         };
+        if (transactionData.type === 'expense_credit') {
+            const cardIdStr = document.getElementById('selectedCardId').value;
+            if (!cardIdStr) {
+                alert('Por favor selecciona una tarjeta de crédito.');
+                return;
+            }
+            transactionData.cardId = parseInt(cardIdStr);
+        } else {
+            delete transactionData.cardId;
+        }
         const wallet = state.getCurrentWallet();
         if (id) {
             const index = wallet.transactions.findIndex(tx => tx.id === id);
@@ -390,8 +502,17 @@ export function initializeEventListeners() {
                 description: document.getElementById('installmentDescription').value,
                 totalAmount: ui.getNumericValue(document.getElementById('installmentTotalAmount').value),
                 totalInstallments: ui.getNumericValue(document.getElementById('installmentTotal').value),
+                paidInstallments: ui.getNumericValue(document.getElementById('installmentPaidInstallments').value), // Read new field
                 type: document.getElementById('installmentType').value
             };
+            if (installmentData.type === 'credit_card') {
+                const cardSelect = document.getElementById('installmentCardId');
+                const cardId = cardSelect ? parseInt(cardSelect.value) : null;
+                if (!cardId) { alert('Selecciona una tarjeta.'); return; }
+                installmentData.cardId = cardId;
+            } else {
+                delete installmentData.cardId;
+            }
             
             if (id) {
                 const item = wallet.installments.find(i => i.id === id);
@@ -399,10 +520,14 @@ export function initializeEventListeners() {
                     item.description = installmentData.description;
                     item.totalAmount = installmentData.totalAmount;
                     item.totalInstallments = installmentData.totalInstallments;
+                    item.paidInstallments = installmentData.paidInstallments; // Update paid installments
                     item.type = installmentData.type;
+                    item.cardId = installmentData.cardId;
                 }
             } else {
-                wallet.installments.push({ id: Date.now(), ...installmentData, paidInstallments: 0 });
+                // For new items, use the input value if provided, otherwise default to 0
+                const initialPaid = installmentData.paidInstallments || 0;
+                wallet.installments.push({ id: Date.now(), ...installmentData, paidInstallments: initialPaid });
             }
             
             await updateDataInFirestore();
@@ -452,8 +577,11 @@ export function initializeEventListeners() {
         document.getElementById('installmentModalTitle').textContent = "Nueva Compra o Crédito";
         document.getElementById('installmentForm').reset();
         document.getElementById('installmentId').value = '';
+        document.getElementById('installmentPaidInstallments').value = '0'; // Default to 0
         document.getElementById('installmentModal').classList.remove('hidden');
         document.getElementById('installmentModal').classList.add('flex');
+        // Inicializar selector de tarjeta según tipo por defecto
+        toggleInstallmentCardField(true);
     });
 
     incomeAndBudgetsContent.addEventListener('click', async (e) => {
@@ -485,7 +613,17 @@ export function initializeEventListeners() {
             if (newCategory && !wallet.transactionCategories[newCategory]) {
                 handleAction(() => {
                     wallet.transactionCategories[newCategory] = [];
-                    wallet.budgets[newCategory] = { total: null, type: 'recurrent', subcategories: {}, payments: {} };
+                    const payType = (document.getElementById('newRecurrentPaymentType')?.value) || 'expense_debit';
+                    const cardIdVal = document.getElementById('newRecurrentPaymentCardId')?.value;
+                    const priority = parseInt(document.getElementById('newRecurrentPriority')?.value) || 3;
+                    const flexible = !!document.getElementById('newRecurrentFlexible')?.checked;
+                    wallet.budgets[newCategory] = { 
+                        total: null, 
+                        type: 'recurrent', 
+                        subcategories: {}, 
+                        payments: {},
+                        config: { paymentType: payType, cardId: payType === 'expense_credit' ? (cardIdVal ? parseInt(cardIdVal) : null) : null, priority, flexible }
+                    };
                     input.value = '';
                 });
             }
@@ -498,7 +636,16 @@ export function initializeEventListeners() {
             if (newCategory && !wallet.transactionCategories[newCategory]) {
                 handleAction(() => {
                     wallet.transactionCategories[newCategory] = [];
-                    wallet.budgets[newCategory] = { total: null, type: 'variable', subcategories: {} };
+                    const payType = (document.getElementById('newVariablePaymentType')?.value) || 'expense_debit';
+                    const cardIdVal = document.getElementById('newVariablePaymentCardId')?.value;
+                    const priority = parseInt(document.getElementById('newVariablePriority')?.value) || 3;
+                    const flexible = !!document.getElementById('newVariableFlexible')?.checked;
+                    wallet.budgets[newCategory] = { 
+                        total: null, 
+                        type: 'variable', 
+                        subcategories: {},
+                        config: { paymentType: payType, cardId: payType === 'expense_credit' ? (cardIdVal ? parseInt(cardIdVal) : null) : null, priority, flexible }
+                    };
                     input.value = '';
                 });
             }
@@ -566,24 +713,9 @@ export function initializeEventListeners() {
         }
 
         // --- Acciones Cuotas ---
-        const unpayInstallmentBtn = e.target.closest('.unpay-installment-btn');
-        if (unpayInstallmentBtn) {
-            const id = parseInt(unpayInstallmentBtn.dataset.id);
-            handleAction(() => {
-                const item = wallet.installments.find(i => i.id === id);
-                if (item && item.paidInstallments > 0) item.paidInstallments--;
-            });
-        }
-
-        const payInstallmentBtn = e.target.closest('.pay-installment-btn');
-        if (payInstallmentBtn) {
-            const id = parseInt(payInstallmentBtn.dataset.id);
-            handleAction(() => {
-                const item = wallet.installments.find(i => i.id === id);
-                if (item && item.paidInstallments < item.totalInstallments) item.paidInstallments++;
-            });
-        }
-
+        // NOTA: Los botones +1/-1 antiguos se han eliminado en favor del toggle.
+        // Si aún existen en el DOM por alguna razón, los ignoramos o los eliminamos.
+        
         const editInstallmentBtn = e.target.closest('.edit-installment-btn');
         if (editInstallmentBtn) {
             const id = parseInt(editInstallmentBtn.dataset.id);
@@ -594,9 +726,12 @@ export function initializeEventListeners() {
                 document.getElementById('installmentDescription').value = item.description;
                 document.getElementById('installmentTotalAmount').value = item.totalAmount;
                 document.getElementById('installmentTotal').value = item.totalInstallments;
+                document.getElementById('installmentPaidInstallments').value = item.paidInstallments; // Populate new field
                 document.getElementById('installmentType').value = item.type;
                 document.getElementById('installmentModal').classList.remove('hidden');
                 document.getElementById('installmentModal').classList.add('flex');
+                // Mostrar y preseleccionar tarjeta si corresponde
+                toggleInstallmentCardField(true, item.cardId || null);
             }
         }
         
@@ -610,12 +745,67 @@ export function initializeEventListeners() {
         }
 
         // --- Toggle para checkbox de "Recibido" en Ingresos Fijos ---
+        // NOTA: Se ha simplificado el HTML de los checkboxes de cuotas, por lo que el selector 'toggle-label' ya no aplica para ellos.
+        // Manejamos primero el caso de Cuotas (Installments) directamente sobre el checkbox o su contenedor.
+        
+        if (e.target.matches('.installment-paid-toggle') || e.target.closest('.installment-paid-toggle')) {
+            // Si es el checkbox directo (click habilitado)
+            const checkbox = e.target.matches('.installment-paid-toggle') ? e.target : e.target.closest('.installment-paid-toggle');
+            // La lógica de bloqueo ya está en el atributo 'disabled' del HTML, pero si queremos mostrar el alert
+            // necesitamos interceptar el click en un contenedor o manejar el intento de cambio.
+            // Como está disabled, el evento 'change' o 'click' no se dispara en el input.
+            // Para mostrar el mensaje en un elemento disabled, necesitamos un wrapper o manejar el click en el padre.
+            
+            // Sin embargo, el usuario pidió que "quede bloqueado". El atributo disabled cumple eso.
+            // Si queremos mostrar el mensaje, podemos usar el icono de candado.
+            
+            const id = parseInt(checkbox.dataset.id);
+            const item = wallet.installments.find(i => i.id === id);
+            const periodKey = `${state.selectedYear}-${state.selectedMonth}`;
+            
+            // Si es manual, permitir toggle con confirmación (si se está desmarcando)
+            if (!checkbox.checked) { // Estaba checked (ahora unchecked por el click) -> Intentando desmarcar
+                 if (confirm("¿Estás seguro de que quieres marcar esta cuota como NO pagada?")) {
+                    handleAction(() => {
+                        if (item.paidInstallments > 0) item.paidInstallments--;
+                        if (item.paymentHistory) delete item.paymentHistory[periodKey];
+                    });
+                } else {
+                    checkbox.checked = true; // Revertir
+                }
+            } else {
+                // Intentando marcar (estaba unchecked)
+                if (item.paidInstallments < item.totalInstallments) {
+                    handleAction(() => {
+                        item.paidInstallments++;
+                        if (!item.paymentHistory) item.paymentHistory = {};
+                        item.paymentHistory[periodKey] = {
+                            paid: true,
+                            date: new Date().toISOString().slice(0, 10),
+                            amount: item.totalAmount / item.totalInstallments,
+                            transactionId: null // Manual
+                        };
+                    });
+                } else {
+                    checkbox.checked = false; // Revertir si ya se pagaron todas
+                }
+            }
+            return;
+        }
+        
+        // Manejo de click en el icono de candado para mostrar el mensaje
+        if (e.target.matches('.fa-lock') && e.target.closest('td')) {
+             alert("Este pago está vinculado a una transacción de 'Pago EE.CC'. Para reversarlo, debes eliminar el movimiento correspondiente en la pestaña 'Movimientos'.");
+             return;
+        }
+
         const toggleLabel = e.target.closest('.toggle-label');
-        if (toggleLabel && toggleLabel.previousElementSibling?.classList.contains('fixed-income-received-toggle')) {
+        if (toggleLabel) {
             const checkbox = toggleLabel.previousElementSibling;
-            if (!checkbox.disabled) {
+            
+            // Caso normal: Ingresos Fijos u otros toggles (que sigan usando la estructura antigua)
+            if (checkbox && !checkbox.disabled && !checkbox.classList.contains('installment-paid-toggle')) {
                 checkbox.checked = !checkbox.checked;
-                // Dispara el evento 'change' manualmente
                 const changeEvent = new Event('change', { bubbles: true });
                 checkbox.dispatchEvent(changeEvent);
             }
@@ -626,6 +816,24 @@ export function initializeEventListeners() {
         const wallet = state.getCurrentWallet();
         if (!wallet) return;
         const periodKey = `${state.selectedYear}-${state.selectedMonth + 1}`;
+
+        // Mostrar/ocultar selector de tarjeta al elegir método de pago al crear categoría
+        if (e.target.id === 'newRecurrentPaymentType') {
+            const wrapper = document.getElementById('newRecurrentPaymentCardWrapper');
+            if (wrapper) {
+                if (e.target.value === 'expense_credit') wrapper.classList.remove('hidden');
+                else wrapper.classList.add('hidden');
+            }
+            return;
+        }
+        if (e.target.id === 'newVariablePaymentType') {
+            const wrapper = document.getElementById('newVariablePaymentCardWrapper');
+            if (wrapper) {
+                if (e.target.value === 'expense_credit') wrapper.classList.remove('hidden');
+                else wrapper.classList.add('hidden');
+            }
+            return;
+        }
 
         if (e.target.matches('.fixed-income-real-amount, .fixed-income-received-toggle')) {
             const id = parseInt(e.target.dataset.id);
@@ -734,8 +942,10 @@ export function initializeEventListeners() {
                 budgetData.payments[periodKey][subcategory] : 
                 budgetData.payments[periodKey];
             
-            const paymentType = paymentInfo?.type || 'expense_debit';
+            const defaultType = budgetData?.config?.paymentType || 'expense_debit';
+            const paymentType = paymentInfo?.type || defaultType;
             const txCategory = subcategory || category;
+            const chosenCardId = (paymentInfo?.cardId != null) ? paymentInfo.cardId : (budgetData?.config?.cardId ?? null);
             
             // Buscar transacción existente para este gasto recurrente
             const txIndex = wallet.transactions.findIndex(tx => 
@@ -756,6 +966,9 @@ export function initializeEventListeners() {
                     isRecurrentPayment: true,
                     periodKey: periodKey
                 };
+                if (paymentType === 'expense_credit' && chosenCardId) {
+                    txData.cardId = chosenCardId;
+                }
                 
                 if (txIndex > -1) {
                     // Actualizar transacción existente
@@ -795,7 +1008,72 @@ export function initializeEventListeners() {
                 // Tipo de pago de categoría sin subcategoría
                 wallet.budgets[category].payments[periodKey].type = paymentType;
             }
+            // Mostrar/ocultar selector de tarjeta en la misma fila
+            const container = e.target.closest('.flex');
+            const cardSelect = container?.querySelector('.recurrent-payment-card-select');
+            if (cardSelect) {
+                if (paymentType === 'expense_credit') cardSelect.classList.remove('hidden');
+                else cardSelect.classList.add('hidden');
+            }
             
+            await updateDataInFirestore();
+            return;
+        }
+
+        // --- Tarjeta seleccionada para Gastos Recurrentes ---
+        if (e.target.matches('.recurrent-payment-card-select')) {
+            const category = e.target.dataset.category;
+            const subcategory = e.target.dataset.subcategory;
+            const cardId = e.target.value ? e.target.value : null;
+            if (!wallet.budgets[category]) wallet.budgets[category] = { total: null, subcategories: {}, payments: {} };
+            if (!wallet.budgets[category].payments) wallet.budgets[category].payments = {};
+            if (!wallet.budgets[category].payments[periodKey]) wallet.budgets[category].payments[periodKey] = {};
+            if (subcategory) {
+                if (!wallet.budgets[category].payments[periodKey][subcategory]) {
+                    wallet.budgets[category].payments[periodKey][subcategory] = {};
+                }
+                wallet.budgets[category].payments[periodKey][subcategory].cardId = cardId;
+            } else {
+                wallet.budgets[category].payments[periodKey].cardId = cardId;
+            }
+            await updateDataInFirestore();
+            return;
+        }
+
+        // --- Configuración por categoría: método, tarjeta, prioridad, flexible ---
+        if (e.target.matches('.budget-config-payment-type-select')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.paymentType = e.target.value;
+            if (e.target.value !== 'expense_credit') wallet.budgets[category].config.cardId = null;
+            await updateDataInFirestore();
+            ui.renderBudgets();
+            return;
+        }
+        if (e.target.matches('.budget-config-card-select')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.cardId = e.target.value || null;
+            await updateDataInFirestore();
+            return;
+        }
+        if (e.target.matches('.budget-config-priority-input')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            let val = parseInt(e.target.value);
+            if (isNaN(val) || val < 1) val = 1; if (val > 5) val = 5;
+            wallet.budgets[category].config.priority = val;
+            await updateDataInFirestore();
+            return;
+        }
+        if (e.target.matches('.budget-config-flexible-checkbox')) {
+            const category = e.target.dataset.category;
+            if (!wallet.budgets[category]) return;
+            if (!wallet.budgets[category].config) wallet.budgets[category].config = {};
+            wallet.budgets[category].config.flexible = !!e.target.checked;
             await updateDataInFirestore();
             return;
         }
@@ -812,9 +1090,9 @@ export function initializeEventListeners() {
             const newWallet = {
                 id: Date.now(),
                 name: newName,
-                transactions: [], previousMonthTransactions: [], fixedIncomes: [], installments: [],
+                transactions: [], previousMonthTransactions: [], fixedIncomes: [], installments: [], creditCards: [],
                 transactionCategories: { 'Ingresos': [], '[Pago de Deuda]': [], 'Compras': [], 'Cuentas': [], 'Otros': [] },
-                budgets: {}, creditCardLimit: 0, bankDebitBalance: 0, bankCreditBalance: 0, manualSurplus: {}
+                budgets: {}, bankDebitBalance: 0, bankCreditBalance: 0, manualSurplus: {}
             };
             state.wallets.push(newWallet);
             state.setCurrentWalletId(newWallet.id);
@@ -848,13 +1126,315 @@ export function initializeEventListeners() {
         }
     });
 
-    document.getElementById('creditCardLimitInput').addEventListener('change', (e) => {
+    // --- Registrar Pago Tarjeta de Crédito ---
+    const creditCardPaymentModal = document.getElementById('creditCardPaymentModal');
+    const creditCardPaymentForm = document.getElementById('creditCardPaymentForm');
+    const registerPaymentBtn = document.getElementById('registerCreditCardPaymentBtn');
+    const closePaymentModalBtn = document.getElementById('closeCreditCardPaymentModalBtn');
+    const paymentCardSelect = document.getElementById('paymentCardId');
+    const paymentInstallmentsContainer = document.getElementById('paymentInstallmentsContainer');
+    const paymentInstallmentsList = document.getElementById('paymentInstallmentsList');
+    const paymentLimitsLabel = document.getElementById('paymentLimitsLabel');
+
+    let currentPaymentMin = 0;
+    let currentPaymentMax = 0;
+
+    const updatePaymentLimits = () => {
         const wallet = state.getCurrentWallet();
-        if (wallet) {
-            wallet.creditCardLimit = ui.getNumericValue(e.target.value) || 0;
-            updateDataInFirestore();
+        const cardId = parseInt(paymentCardSelect.value);
+        if (!cardId) return;
+
+        // 1. Calcular Deuda Spot (Compras del mes actual)
+        const monthlyTransactions = wallet.transactions.filter(t => {
+            const [year, month] = t.date.split('-').map(Number);
+            return month - 1 === state.selectedMonth && year === state.selectedYear;
+        });
+        const spotExpenses = monthlyTransactions
+            .filter(t => t.type === 'expense_credit' && t.cardId === cardId)
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // 2. Calcular Deuda de Cuotas Seleccionadas
+        let checkedInstallmentsTotal = 0;
+        const checkboxes = paymentInstallmentsList.querySelectorAll('input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            checkedInstallmentsTotal += parseFloat(cb.dataset.amount);
+        });
+
+        // 3. Definir Límites
+        // Mínimo: Suma de cuotas seleccionadas (si hay) o 1 (si hay deuda spot pero no cuotas seleccionadas)
+        // Máximo: Deuda Spot + Suma de cuotas seleccionadas
+        
+        currentPaymentMin = checkedInstallmentsTotal > 0 ? checkedInstallmentsTotal : (spotExpenses > 0 ? 1 : 0);
+        currentPaymentMax = spotExpenses + checkedInstallmentsTotal;
+
+        // Si no hay deuda de nada, min y max son 0
+        if (currentPaymentMax === 0) currentPaymentMin = 0;
+
+        paymentLimitsLabel.textContent = `Mín: ${ui.formatCurrency(currentPaymentMin)} - Máx: ${ui.formatCurrency(currentPaymentMax)}`;
+    };
+
+    const renderPaymentInstallments = () => {
+        const wallet = state.getCurrentWallet();
+        const cardId = parseInt(paymentCardSelect.value);
+        paymentInstallmentsList.innerHTML = '';
+        
+        if (!cardId) {
+            paymentInstallmentsContainer.classList.add('hidden');
+            return;
         }
-    });
+
+        const activeInstallments = (wallet.installments || []).filter(i => 
+            i.type === 'credit_card' && 
+            i.cardId === cardId && 
+            i.paidInstallments < i.totalInstallments
+        );
+
+        if (activeInstallments.length === 0) {
+            paymentInstallmentsContainer.classList.add('hidden');
+        } else {
+            paymentInstallmentsContainer.classList.remove('hidden');
+            activeInstallments.forEach(inst => {
+                const monthlyAmount = inst.totalAmount / inst.totalInstallments;
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-gray-700/50 p-2 rounded';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <input type="checkbox" class="installment-payment-checkbox accent-indigo-500 w-4 h-4 shrink-0" 
+                            data-id="${inst.id}" 
+                            data-amount="${monthlyAmount}">
+                        <div class="text-xs text-gray-300 truncate">
+                            <span class="font-semibold block text-white">${inst.description}</span>
+                            <span>Cuota ${inst.paidInstallments + 1}/${inst.totalInstallments}</span>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-white shrink-0">${ui.formatCurrency(monthlyAmount)}</span>
+                `;
+                paymentInstallmentsList.appendChild(div);
+            });
+            
+            // Listeners para checkboxes
+            paymentInstallmentsList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updatePaymentLimits);
+            });
+        }
+        updatePaymentLimits();
+    };
+
+    if (paymentCardSelect) {
+        paymentCardSelect.addEventListener('change', renderPaymentInstallments);
+    }
+
+    if (registerPaymentBtn) {
+        registerPaymentBtn.addEventListener('click', () => {
+            const wallet = state.getCurrentWallet();
+            if (!wallet || !wallet.creditCards || wallet.creditCards.length === 0) {
+                alert('No tienes tarjetas de crédito registradas.');
+                return;
+            }
+            
+            paymentCardSelect.innerHTML = '';
+            wallet.creditCards.forEach(card => {
+                const opt = document.createElement('option');
+                opt.value = card.id;
+                opt.textContent = card.name;
+                paymentCardSelect.appendChild(opt);
+            });
+            
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
+            
+            renderPaymentInstallments(); // Cargar cuotas de la primera tarjeta
+            
+            creditCardPaymentModal.classList.remove('hidden');
+            creditCardPaymentModal.classList.add('flex');
+        });
+    }
+
+    if (closePaymentModalBtn) {
+        closePaymentModalBtn.addEventListener('click', () => {
+            creditCardPaymentModal.classList.add('hidden');
+            creditCardPaymentModal.classList.remove('flex');
+        });
+    }
+    
+    if (creditCardPaymentModal) {
+        creditCardPaymentModal.addEventListener('click', (e) => {
+            if (e.target === creditCardPaymentModal) {
+                creditCardPaymentModal.classList.add('hidden');
+                creditCardPaymentModal.classList.remove('flex');
+            }
+        });
+    }
+
+    if (creditCardPaymentForm) {
+        creditCardPaymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const wallet = state.getCurrentWallet();
+            const cardId = parseInt(paymentCardSelect.value);
+            const amount = ui.getNumericValue(document.getElementById('paymentAmount').value);
+            const date = document.getElementById('paymentDate').value;
+            
+            if (!amount || amount <= 0) {
+                alert('Ingresa un monto válido.');
+                return;
+            }
+
+            // Validar contra límites calculados
+            // Permitimos un pequeño margen de error por redondeo, o si el usuario quiere pagar de más (prepago)
+            // Pero según requerimiento: "pago minimo X y maximo Y".
+            if (amount < currentPaymentMin) {
+                alert(`El monto mínimo a pagar es ${ui.formatCurrency(currentPaymentMin)} (según selección).`);
+                return;
+            }
+            if (amount > currentPaymentMax) {
+                if (!confirm(`Estás pagando más del total calculado (${ui.formatCurrency(currentPaymentMax)}). ¿Deseas continuar?`)) {
+                    return;
+                }
+            }
+            
+            const card = wallet.creditCards.find(c => c.id === cardId);
+            const cardName = card ? card.name : 'Tarjeta';
+            
+            // Identificar cuotas pagadas
+            const checkedCheckboxes = paymentInstallmentsList.querySelectorAll('input[type="checkbox"]:checked');
+            let installmentPortion = 0;
+            const paidInstallmentIds = [];
+            const periodKey = `${state.selectedYear}-${state.selectedMonth}`;
+            const transactionId = Date.now();
+
+            checkedCheckboxes.forEach(cb => {
+                const instId = parseInt(cb.dataset.id);
+                const instAmount = parseFloat(cb.dataset.amount);
+                installmentPortion += instAmount;
+                paidInstallmentIds.push(instId);
+
+                // Actualizar estado de la cuota en la billetera
+                const installment = wallet.installments.find(i => i.id === instId);
+                if (installment && installment.paidInstallments < installment.totalInstallments) {
+                    installment.paidInstallments++;
+                    
+                    // Guardar historial de pago detallado
+                    if (!installment.paymentHistory) installment.paymentHistory = {};
+                    installment.paymentHistory[periodKey] = {
+                        paid: true,
+                        date: date,
+                        amount: instAmount,
+                        transactionId: transactionId
+                    };
+                }
+            });
+
+            // Crear transacción de gasto (pago de deuda)
+            const transaction = {
+                id: transactionId,
+                description: `Pago EE.CC - ${cardName}`,
+                amount: amount,
+                date: date,
+                type: 'expense_debit',
+                category: '[Pago de Deuda]',
+                subcategory: null,
+                cardId: cardId, // Referencia a la tarjeta pagada
+                installmentPaymentPortion: installmentPortion, // Guardar cuánto de este pago fue para cuotas
+                paidInstallmentIds: paidInstallmentIds // Guardar qué cuotas se pagaron
+            };
+            
+            wallet.transactions.push(transaction);
+            await updateDataInFirestore();
+            
+            creditCardPaymentModal.classList.add('hidden');
+            creditCardPaymentModal.classList.remove('flex');
+            ui.renderTransactions();
+            ui.renderBudgets(); // Para actualizar tabla de cuotas
+            ui.updateDashboard();
+        });
+    }
+
+    // --- CRUD Tarjetas de Crédito ---
+    const creditCardList = document.getElementById('creditCardList');
+    const addCreditCardBtn = document.getElementById('addCreditCardBtn');
+    if (addCreditCardBtn) {
+        addCreditCardBtn.addEventListener('click', async () => {
+            const nameInput = document.getElementById('newCreditCardNameInput');
+            const name = (nameInput.value || '').trim();
+            if (!name) return;
+            const wallet = state.getCurrentWallet();
+            if (!wallet.creditCards) wallet.creditCards = [];
+            wallet.creditCards.push({ id: Date.now(), name, limit: 0, createdAt: Date.now(), updatedAt: Date.now() });
+            nameInput.value = '';
+            await updateDataInFirestore();
+            ui.renderSettings();
+        });
+    }
+
+    if (creditCardList) {
+        creditCardList.addEventListener('click', async (e) => {
+            const wallet = state.getCurrentWallet();
+            const btnEdit = e.target.closest('.edit-credit-card-btn');
+            const btnDelete = e.target.closest('.delete-credit-card-btn');
+            if (btnEdit) {
+                const id = parseInt(btnEdit.dataset.cardId);
+                const card = wallet.creditCards.find(c => c.id === id);
+                if (!card) return;
+                const newName = prompt('Nuevo nombre para la tarjeta:', card.name);
+                if (newName && newName.trim() !== '') {
+                    card.name = newName.trim();
+                    card.updatedAt = Date.now();
+                    await updateDataInFirestore();
+                    ui.renderSettings();
+                }
+                return;
+            }
+            if (btnDelete) {
+                const id = parseInt(btnDelete.dataset.cardId);
+                const card = wallet.creditCards.find(c => c.id === id);
+                if (!card) return;
+                ui.showConfirmationModal(`¿Seguro que quieres eliminar la tarjeta "${card.name}"?`, async () => {
+                    wallet.creditCards = wallet.creditCards.filter(c => c.id !== id);
+                    await updateDataInFirestore();
+                    ui.renderSettings();
+                });
+                return;
+            }
+        });
+
+        const persistLimit = async (inputEl) => {
+            const wallet = state.getCurrentWallet();
+            const id = parseInt(inputEl.dataset.cardId);
+            const card = wallet.creditCards.find(c => c.id === id);
+            if (!card) return;
+            card.limit = ui.getNumericValue(inputEl.value) || 0;
+            card.updatedAt = Date.now();
+            await updateDataInFirestore();
+            ui.renderSettings();
+            ui.updateDashboard();
+        };
+
+        creditCardList.addEventListener('change', async (e) => {
+            const input = e.target.closest('.credit-card-limit-input');
+            if (input) await persistLimit(input);
+        });
+        creditCardList.addEventListener('blur', async (e) => {
+            const input = e.target.closest('.credit-card-limit-input');
+            if (input) await persistLimit(input);
+        }, true);
+    }
+
+    // Conciliación por tarjeta - actualizar banco en cada fila
+    const reconCardsContainer = document.getElementById('reconciliationCreditCardsContainer');
+    if (reconCardsContainer) {
+        reconCardsContainer.addEventListener('change', async (e) => {
+            const input = e.target.closest('.bank-credit-input');
+            if (!input) return;
+            const wallet = state.getCurrentWallet();
+            const id = parseInt(input.dataset.cardId);
+            const card = wallet.creditCards.find(c => c.id === id);
+            if (!card) return;
+            card.bankAvailable = ui.getNumericValue(input.value) || 0;
+            card.updatedAt = Date.now();
+            await updateDataInFirestore();
+            ui.updateDashboard();
+        });
+    }
     
     document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
         state.setGeminiApiKey(document.getElementById('geminiApiKeyInput').value);

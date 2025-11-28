@@ -7,6 +7,9 @@
       "hosting": {
         "qa": [
           "app-financiera-qa"
+        ],
+        "prod": [
+          "aplicacion-de-costos-70bb2"
         ]
       }
     }

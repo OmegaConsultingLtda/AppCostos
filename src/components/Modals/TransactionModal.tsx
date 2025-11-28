@@ -17,11 +17,13 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [type, setType] = useState<'income' | 'expense_debit' | 'expense_credit'>('expense_debit');
+  type TransactionType = 'income' | 'expense_debit' | 'expense_credit';
+  const [type, setType] = useState<TransactionType>('expense_debit');
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [cardId, setCardId] = useState<number | undefined>(undefined);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (transactionToEdit) {
       setDescription(transactionToEdit.description);
@@ -42,6 +44,7 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
       setCardId(undefined);
     }
   }, [transactionToEdit, isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +127,7 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
           <select
             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
             value={type}
-            onChange={e => setType(e.target.value as any)}
+            onChange={e => setType(e.target.value as TransactionType)}
           >
             <option value="income">Ingreso</option>
             <option value="expense_debit">Gasto (Débito)</option>

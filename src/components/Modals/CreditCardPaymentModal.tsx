@@ -17,7 +17,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState('');
-  const [installmentPayments, setInstallmentPayments] = useState<{ [installmentId: number]: number }>({});
+  const [installmentPayments, setInstallmentPayments] = useState<{ [installmentId: number]: number | string }>({});
 
   useEffect(() => {
     if (isOpen && currentWallet) {
@@ -33,7 +33,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
     if (!currentWallet || !selectedCardId || !amount) return;
 
     const totalAmount = Number(amount) || 0;
-    const installmentTotal = Object.values(installmentPayments).reduce((sum, val) => sum + (Number(val) || 0), 0);
+    const installmentTotal = Object.values(installmentPayments).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
     const spotPayment = totalAmount - installmentTotal;
 
     const periodKey = `${selectedYear}-${selectedMonth}`;
@@ -104,7 +104,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
     return !inst.paymentHistory?.[periodKey];
   });
 
-  const totalInstallmentPayments = Object.values(installmentPayments).reduce((sum, val) => sum + (Number(val) || 0), 0);
+  const totalInstallmentPayments = Object.values(installmentPayments).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
   const remainingForSpot = Number(amount) - totalInstallmentPayments;
 
   return (

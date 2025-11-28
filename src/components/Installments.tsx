@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useWallet } from '@/context/WalletContext';
 import { formatCurrency } from '@/utils/format';
 import { FaEdit, FaTrash, FaPlus, FaLock } from 'react-icons/fa';
-import { Installment } from '@/types';
+import { Installment, Wallet } from '@/types';
 import Modal from './Modals/Modal';
 
 export default function Installments() {
@@ -24,7 +24,7 @@ export default function Installments() {
     return currentWallet.installments || [];
   }, [currentWallet]);
 
-  const updateWallet = (updater: (wallet: typeof currentWallet) => typeof currentWallet) => {
+  const updateWallet = (updater: (wallet: Wallet) => Wallet) => {
     if (!currentWallet) return;
     const updatedWallets = appState.wallets.map(w => {
       if (w.id === currentWallet.id) {

@@ -13,7 +13,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const tabs = [
     { id: 'dashboard', label: 'Resumen', icon: FaChartPie },
     { id: 'transactions', label: 'Movimientos', icon: FaList },
-    { id: 'debts', label: 'Deudas', icon: FaCreditCard },
+    { id: 'debts', label: 'Cuotas y Créditos', icon: FaCreditCard },
     { id: 'budgets', label: 'Presupuestos', icon: FaMoneyBillWave },
     { id: 'investments', label: 'Inversiones', icon: FaPiggyBank },
     { id: 'settings', label: 'Configuración', icon: FaCog },

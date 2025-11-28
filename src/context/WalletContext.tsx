@@ -42,10 +42,6 @@ const defaultData: AppState = {
   }
 };
 
-type SortColumn = 'date' | 'amount' | 'category';
-type SortDirection = 'asc' | 'desc';
-type TransactionFilter = 'all' | 'income' | 'expense';
-
 interface WalletContextType {
   user: User | null;
   loading: boolean;
@@ -57,14 +53,6 @@ interface WalletContextType {
   setSelectedMonth: React.Dispatch<React.SetStateAction<number>>;
   selectedYear: number;
   setSelectedYear: React.Dispatch<React.SetStateAction<number>>;
-  sortColumn: SortColumn;
-  setSortColumn: React.Dispatch<React.SetStateAction<SortColumn>>;
-  sortDirection: SortDirection;
-  setSortDirection: React.Dispatch<React.SetStateAction<SortDirection>>;
-  filterCategory: string;
-  setFilterCategory: React.Dispatch<React.SetStateAction<string>>;
-  currentFilter: TransactionFilter;
-  setCurrentFilter: React.Dispatch<React.SetStateAction<TransactionFilter>>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -75,10 +63,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultData);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [sortColumn, setSortColumn] = useState<SortColumn>('date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [currentFilter, setCurrentFilter] = useState<TransactionFilter>('all');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -91,26 +75,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const getAppDocRef = (userId: string) => doc(db, 'users', userId, 'appData', 'main');
-
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!user) return;
 
     setLoading(true);
-    const docRef = getAppDocRef(user.uid);
+    const docRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as AppState;
         // Ensure we merge with default structure to avoid missing fields if schema changes
-        setAppState(() => ({
+        setAppState(prevState => ({
             ...defaultData,
             ...data,
             wallets: data.wallets || defaultData.wallets
         }));
       } else {
         // Initialize new user with default data
-        void setDoc(docRef, defaultData);
+        setDoc(docRef, defaultData);
         setAppState(defaultData);
       }
       setLoading(false);
@@ -121,12 +102,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
   }, [user]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const saveData = async (newData: AppState) => {
     if (!user) return;
     try {
-      await setDoc(getAppDocRef(user.uid), newData, { merge: true });
+      await setDoc(doc(db, 'users', user.uid), newData);
       // State update happens via onSnapshot
     } catch (error) {
       console.error("Error saving data:", error);
@@ -146,15 +126,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       selectedMonth,
       setSelectedMonth,
       selectedYear,
-      setSelectedYear,
-      sortColumn,
-      setSortColumn,
-      sortDirection,
-      setSortDirection,
-      filterCategory,
-      setFilterCategory,
-      currentFilter,
-      setCurrentFilter
+      setSelectedYear
     }}>
       {children}
     </WalletContext.Provider>

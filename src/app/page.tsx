@@ -7,12 +7,6 @@ import Dashboard from "@/components/Dashboard";
 import TransactionList from "@/components/Transactions/TransactionList";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import Budgets from "@/components/Budgets";
-import Settings from "@/components/Settings";
-import Installments from "@/components/Installments";
-import WalletConfig from "@/components/WalletConfig";
-import QATools from "@/components/QATools";
-import { isQAEnvironment } from "@/utils/env";
 
 export default function Home() {
   const { user, loading } = useWallet();
@@ -35,27 +29,12 @@ export default function Home() {
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
           
           <main className="flex-1 min-w-0">
-            {activeTab === 'dashboard' && (
-              <>
-                <Dashboard />
-                {isQAEnvironment() && (
-                  <div className="mt-6">
-                    <QATools />
-                  </div>
-                )}
-              </>
-            )}
+            {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'transactions' && <TransactionList />}
-            {activeTab === 'debts' && <Installments />}
-            {activeTab === 'budgets' && <Budgets />}
+            {activeTab === 'debts' && <div className="text-white">Debts Content</div>}
+            {activeTab === 'budgets' && <div className="text-white">Budgets Content</div>}
             {activeTab === 'investments' && <div className="text-white">Investments Content</div>}
-            {activeTab === 'settings' && (
-              <div className="space-y-6">
-                <Settings />
-                <WalletConfig />
-                {isQAEnvironment() && <QATools />}
-              </div>
-            )}
+            {activeTab === 'settings' && <div className="text-white">Settings Content</div>}
           </main>
         </div>
       </div>

@@ -11,8 +11,6 @@ export interface Transaction {
   fixedIncomeId?: number;
   isRecurrentPayment?: boolean;
   periodKey?: string;
-  installmentPaymentPortion?: number;
-  paidInstallmentIds?: number[];
 }
 
 export interface FixedIncome {
@@ -32,16 +30,9 @@ export interface Installment {
   description: string;
   totalAmount: number;
   totalInstallments: number;
-  paidInstallments?: number;
+  paidInstallments: number;
   type: 'credit_card' | 'consumer_loan';
   cardId?: number;
-  paymentHistory?: {
-    [key: string]: {
-      amount: number;
-      paid: boolean;
-      transactionId?: number;
-    };
-  };
 }
 
 export interface CreditCard {

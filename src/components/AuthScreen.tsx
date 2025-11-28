@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
 import { auth } from '@/lib/firebase';
 
 export default function AuthScreen() {
@@ -11,14 +12,20 @@ export default function AuthScreen() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [registerError, setRegisterError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     try {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-    } catch (error: any) {
-      setLoginError(error.message);
+    } catch (error: unknown) {
+      console.error('Error al iniciar sesión', error);
+      if (error instanceof FirebaseError && error.code === 'auth/invalid-credential') {
+        setLoginError("Email o contraseña incorrectos.");
+      } else {
+        setLoginError("No se pudo iniciar sesión. Intenta nuevamente.");
+      }
     }
   };
 
@@ -27,8 +34,34 @@ export default function AuthScreen() {
     setRegisterError('');
     try {
       await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
-    } catch (error: any) {
-      setRegisterError(error.message);
+    } catch (error: unknown) {
+      console.error('Error al registrar cuenta', error);
+      if (error instanceof FirebaseError) {
+        if (error.code === 'auth/email-already-in-use') {
+          setRegisterError("El email ya está registrado.");
+        } else if (error.code === 'auth/weak-password') {
+          setRegisterError("La contraseña debe tener al menos 6 caracteres.");
+        } else {
+          setRegisterError("Error al registrar la cuenta.");
+        }
+      } else {
+        setRegisterError("Error inesperado al registrar la cuenta.");
+      }
+    }
+  };
+
+  const handlePasswordReset = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setResetMessage('');
+    const email = window.prompt("Ingresa el email asociado a tu cuenta:");
+    if (!email) return;
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetMessage('Si el email está registrado, recibirás un enlace para restablecer la contraseña.');
+    } catch (error) {
+      console.error('Error al enviar correo de recuperación', error);
+      setResetMessage('No se pudo enviar el correo de recuperación. Intenta nuevamente.');
     }
   };
 
@@ -64,7 +97,14 @@ export default function AuthScreen() {
             Iniciar Sesión
           </button>
           {loginError && <p className="text-red-400 text-sm text-center">{loginError}</p>}
-          <a href="#" className="text-sm text-indigo-400 hover:text-indigo-300 text-center block mt-2">¿Olvidaste tu contraseña?</a>
+          <a 
+            href="#" 
+            onClick={handlePasswordReset}
+            className="text-sm text-indigo-400 hover:text-indigo-300 text-center block mt-2"
+          >
+            ¿Olvidaste tu contraseña?
+          </a>
+          {resetMessage && <p className="text-green-400 text-xs text-center mt-2">{resetMessage}</p>}
         </form>
 
         <div className="my-6 flex items-center">

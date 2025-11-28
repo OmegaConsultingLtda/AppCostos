@@ -1,14 +1,18 @@
 {
   "projects": {
-    "default": "aplicacion-de-costos-70bb2"
+    "appcostos": "aplicacion-de-costos-70bb2"
   },
   "targets": {
     "aplicacion-de-costos-70bb2": {
       "hosting": {
+        "prod": [
+          "aplicacion-de-costos-70bb2"
+        ],
         "qa": [
           "app-financiera-qa"
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }

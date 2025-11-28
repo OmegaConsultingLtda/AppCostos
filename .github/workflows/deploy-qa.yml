@@ -29,5 +29,6 @@ jobs:
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}'
-          channelId: qa
+          channelId: live
           projectId: 'aplicacion-de-costos-70bb2'
+          target: qa

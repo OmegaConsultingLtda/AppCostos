@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "aplicacion-de-costos-70bb2"
+  },
+  "targets": {
+    "aplicacion-de-costos-70bb2": {
+      "hosting": {
+        "qa": [
+          "app-financiera-qa"
+        ]
+      }
+    }
   }
 }

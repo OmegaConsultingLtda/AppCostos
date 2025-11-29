@@ -145,20 +145,20 @@ export default function Installments() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-white">Cuotas y Créditos</h2>
+        <h2 className="text-xl font-bold text-text-primary">Cuotas y Créditos</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+          className="bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
         >
           <FaPlus /> Nueva Cuota
         </button>
       </div>
 
-      <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-700 text-gray-300 text-sm uppercase tracking-wider">
+              <tr className="bg-background text-text-secondary text-sm uppercase tracking-wider border-b border-gray-200 dark:border-gray-800">
                 <th className="p-3 font-semibold">Descripción</th>
                 <th className="p-3 font-semibold text-right">Cuota Mensual</th>
                 <th className="p-3 font-semibold text-center">Pagadas</th>
@@ -167,7 +167,7 @@ export default function Installments() {
                 <th className="p-3 font-semibold text-center">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {installments.length > 0 ? (
                 installments.map(item => {
                   const monthlyPayment = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
@@ -179,17 +179,16 @@ export default function Installments() {
                   const isLocked = paymentRecord?.transactionId ? true : false;
 
                   return (
-                    <tr key={item.id} className="hover:bg-gray-700/50 transition-colors">
-                      <td className="p-3 font-medium text-white">{item.description}</td>
-                      <td className="p-3 text-right text-orange-400 font-semibold">{formatCurrency(monthlyPayment)}</td>
+                    <tr key={item.id} className="hover:bg-background/50 transition-colors">
+                      <td className="p-3 font-medium text-text-primary">{item.description}</td>
+                      <td className="p-3 text-right text-brand-accent font-semibold">{formatCurrency(monthlyPayment)}</td>
                       <td className="p-3 text-center">
-                        <span className={`font-semibold ${isPaidOff ? 'text-green-400' : 'text-white'}`}>
+                        <span className={`font-semibold ${isPaidOff ? 'text-brand-primary' : 'text-text-primary'}`}>
                           {item.paidInstallments || 0}
                         </span>
-                        {' / '}
-                        {item.totalInstallments}
+                        <span className="text-text-secondary"> / {item.totalInstallments}</span>
                       </td>
-                      <td className={`p-3 text-right font-bold hidden sm:table-cell ${isPaidOff ? 'text-gray-500' : 'text-red-400'}`}>
+                      <td className={`p-3 text-right font-bold hidden sm:table-cell ${isPaidOff ? 'text-text-secondary' : 'text-brand-secondary'}`}>
                         {formatCurrency(remainingBalance)}
                       </td>
                       <td className="p-3 text-center">
@@ -199,21 +198,21 @@ export default function Installments() {
                             checked={isPaidThisMonth}
                             onChange={() => handleTogglePaid(item)}
                             disabled={isLocked}
-                            className="w-5 h-5 text-green-600 bg-gray-700 border-gray-500 rounded focus:ring-green-500 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-5 h-5 text-brand-accent bg-background border-gray-200 dark:border-gray-500 rounded focus:ring-brand-accent focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           />
-                          {isLocked && <FaLock className="text-xs text-gray-400" title="Pagado vía transacción" />}
+                          {isLocked && <FaLock className="text-xs text-text-secondary" title="Pagado vía transacción" />}
                         </div>
                       </td>
                       <td className="p-3 text-center space-x-1">
                         <button
                           onClick={() => handleOpenModal(item)}
-                          className="text-yellow-400 hover:text-yellow-300"
+                          className="text-brand-primary hover:text-brand-primary/80"
                         >
                           <FaEdit />
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
-                          className="text-red-500 hover:text-red-400"
+                          className="text-brand-secondary hover:text-brand-secondary/80"
                         >
                           <FaTrash />
                         </button>
@@ -223,16 +222,16 @@ export default function Installments() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500">No hay cuotas registradas.</td>
+                  <td colSpan={6} className="p-8 text-center text-text-secondary">No hay cuotas registradas.</td>
                 </tr>
               )}
             </tbody>
             <tfoot>
-              <tr className="bg-gray-900 text-white text-sm font-bold">
+              <tr className="bg-background text-text-primary text-sm font-bold border-t border-gray-200 dark:border-gray-800">
                 <td className="p-3">Totales</td>
-                <td className="p-3 text-right text-orange-400">{formatCurrency(totals.monthly)}</td>
+                <td className="p-3 text-right text-brand-accent">{formatCurrency(totals.monthly)}</td>
                 <td className="p-3"></td>
-                <td className="p-3 text-right text-red-400 hidden sm:table-cell">{formatCurrency(totals.remaining)}</td>
+                <td className="p-3 text-right text-brand-secondary hidden sm:table-cell">{formatCurrency(totals.remaining)}</td>
                 <td className="p-3" colSpan={2}></td>
               </tr>
             </tfoot>
@@ -247,11 +246,11 @@ export default function Installments() {
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Descripción</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Descripción</label>
             <input
               type="text"
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
             />
@@ -259,23 +258,23 @@ export default function Installments() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Monto Total</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Monto Total</label>
               <input
                 type="number"
                 required
                 min="0"
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
                 value={formData.totalAmount}
                 onChange={e => setFormData({ ...formData, totalAmount: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Número de Cuotas</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Número de Cuotas</label>
               <input
                 type="number"
                 required
                 min="1"
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
                 value={formData.totalInstallments}
                 onChange={e => setFormData({ ...formData, totalInstallments: e.target.value })}
               />
@@ -283,9 +282,9 @@ export default function Installments() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Tipo</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
             <select
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={formData.type}
               onChange={e => setFormData({ ...formData, type: e.target.value as 'credit_card' | 'consumer_loan', cardId: undefined })}
             >
@@ -296,10 +295,10 @@ export default function Installments() {
 
           {formData.type === 'credit_card' && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Tarjeta</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Tarjeta</label>
               <select
                 required
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
                 value={formData.cardId || ''}
                 onChange={e => setFormData({ ...formData, cardId: Number(e.target.value) })}
               >
@@ -313,7 +312,7 @@ export default function Installments() {
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
+            className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
           >
             {editingInstallment ? 'Guardar Cambios' : 'Agregar Cuota'}
           </button>

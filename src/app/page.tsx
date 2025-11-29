@@ -19,7 +19,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-gray-900 text-white">Cargando...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background text-text-primary">Cargando...</div>;
   }
 
   if (!user) {
@@ -27,7 +27,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <Header />
         

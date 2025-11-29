@@ -43,7 +43,7 @@ export default function Sidebar({ activeTab, setActiveTab, user }: SidebarProps)
   return (
     <aside 
       className={clsx(
-        "bg-surface border-r border-gray-200 dark:border-gray-800 h-full flex flex-col transition-all duration-300 ease-in-out z-20 overflow-hidden",
+        "bg-surface border-r border-gray-200 dark:border-gray-800 h-[100-dvh] flex flex-col transition-all duration-300 ease-in-out z-20 overflow-hidden",
         isOpen ? "w-64" : "w-20"
       )}
     >

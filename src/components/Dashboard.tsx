@@ -37,40 +37,40 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg border-l-4 border-green-500">
+        <div className="bg-surface p-6 rounded-lg shadow-lg border-l-4 border-brand-accent">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Ingresos Totales</p>
-              <h3 className="text-2xl font-bold text-white mt-1">{formatCurrency(stats.income)}</h3>
+              <p className="text-text-secondary text-sm font-medium">Ingresos Totales</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(stats.income)}</h3>
             </div>
-            <div className="bg-green-500/20 p-3 rounded-full">
-              <FaArrowUp className="text-green-500 text-xl" />
+            <div className="bg-brand-accent/20 p-3 rounded-full">
+              <FaArrowUp className="text-brand-accent text-xl" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg border-l-4 border-red-500">
+        <div className="bg-surface p-6 rounded-lg shadow-lg border-l-4 border-brand-secondary">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Gastos Totales</p>
-              <h3 className="text-2xl font-bold text-white mt-1">{formatCurrency(stats.expenses)}</h3>
+              <p className="text-text-secondary text-sm font-medium">Gastos Totales</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{formatCurrency(stats.expenses)}</h3>
             </div>
-            <div className="bg-red-500/20 p-3 rounded-full">
-              <FaArrowDown className="text-red-500 text-xl" />
+            <div className="bg-brand-secondary/20 p-3 rounded-full">
+              <FaArrowDown className="text-brand-secondary text-xl" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg border-l-4 border-blue-500">
+        <div className="bg-surface p-6 rounded-lg shadow-lg border-l-4 border-brand-primary">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Balance Mensual</p>
-              <h3 className={`text-2xl font-bold mt-1 ${stats.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <p className="text-text-secondary text-sm font-medium">Balance Mensual</p>
+              <h3 className={`text-2xl font-bold mt-1 ${stats.balance >= 0 ? 'text-brand-accent' : 'text-brand-secondary'}`}>
                 {formatCurrency(stats.balance)}
               </h3>
             </div>
-            <div className="bg-blue-500/20 p-3 rounded-full">
-              <FaWallet className="text-blue-500 text-xl" />
+            <div className="bg-brand-primary/20 p-3 rounded-full">
+              <FaWallet className="text-brand-primary text-xl" />
             </div>
           </div>
         </div>
@@ -78,9 +78,9 @@ export default function Dashboard() {
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CategoryChart />
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h3 className="text-xl font-bold text-white mb-4">Resumen de Presupuestos</h3>
-            <p className="text-gray-400">Próximamente...</p>
+        <div className="bg-surface p-6 rounded-lg shadow-lg">
+            <h3 className="text-xl font-bold text-text-primary mb-4">Resumen de Presupuestos</h3>
+            <p className="text-text-secondary">Próximamente...</p>
         </div>
       </div>
     </div>

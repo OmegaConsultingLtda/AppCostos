@@ -29,8 +29,8 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             className={clsx(
               "flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition-colors duration-200",
               activeTab === tab.id
-                ? "bg-indigo-600 text-white shadow-md"
-                : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                ? "bg-brand-primary text-white shadow-md"
+                : "text-text-secondary hover:bg-surface hover:text-text-primary"
             )}
           >
             <tab.icon className="w-5 h-5" />

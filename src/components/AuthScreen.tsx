@@ -66,80 +66,80 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900">
-      <div className="w-full max-w-md mx-4 bg-gray-800 p-8 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-white text-center mb-6">Acceso al Panel Financiero</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="w-full max-w-md mx-4 bg-surface p-8 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+        <h2 className="text-2xl font-bold text-text-primary text-center mb-6">Acceso al Panel Financiero</h2>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="loginEmail" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+            <label htmlFor="loginEmail" className="block text-sm font-medium text-text-secondary mb-1">Email</label>
             <input
               type="email"
               id="loginEmail"
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-primary"
               required
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
             />
           </div>
           <div>
-            <label htmlFor="loginPassword" className="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
+            <label htmlFor="loginPassword" className="block text-sm font-medium text-text-secondary mb-1">Contraseña</label>
             <input
               type="password"
               id="loginPassword"
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-primary"
               required
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
             />
           </div>
-          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+          <button type="submit" className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors">
             Iniciar Sesión
           </button>
-          {loginError && <p className="text-red-400 text-sm text-center">{loginError}</p>}
+          {loginError && <p className="text-brand-secondary text-sm text-center">{loginError}</p>}
           <a 
             href="#" 
             onClick={handlePasswordReset}
-            className="text-sm text-indigo-400 hover:text-indigo-300 text-center block mt-2"
+            className="text-sm text-brand-primary hover:text-brand-primary/80 text-center block mt-2"
           >
             ¿Olvidaste tu contraseña?
           </a>
-          {resetMessage && <p className="text-green-400 text-xs text-center mt-2">{resetMessage}</p>}
+          {resetMessage && <p className="text-brand-accent text-xs text-center mt-2">{resetMessage}</p>}
         </form>
 
         <div className="my-6 flex items-center">
-          <hr className="flex-grow border-gray-600" />
-          <span className="px-4 text-gray-400 text-sm">o</span>
-          <hr className="flex-grow border-gray-600" />
+          <hr className="flex-grow border-gray-200 dark:border-gray-700" />
+          <span className="px-4 text-text-secondary text-sm">o</span>
+          <hr className="flex-grow border-gray-200 dark:border-gray-700" />
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label htmlFor="registerEmail" className="block text-sm font-medium text-gray-300 mb-1">Email para Registrarse</label>
+            <label htmlFor="registerEmail" className="block text-sm font-medium text-text-secondary mb-1">Email para Registrarse</label>
             <input
               type="email"
               id="registerEmail"
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               required
               value={registerEmail}
               onChange={(e) => setRegisterEmail(e.target.value)}
             />
           </div>
           <div>
-            <label htmlFor="registerPassword" className="block text-sm font-medium text-gray-300 mb-1">Crear Contraseña</label>
+            <label htmlFor="registerPassword" className="block text-sm font-medium text-text-secondary mb-1">Crear Contraseña</label>
             <input
               type="password"
               id="registerPassword"
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               required
               value={registerPassword}
               onChange={(e) => setRegisterPassword(e.target.value)}
             />
           </div>
-          <button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+          <button type="submit" className="w-full bg-brand-accent hover:bg-brand-accent/90 text-white font-bold py-2 px-4 rounded-lg transition-colors">
             Crear Cuenta Nueva
           </button>
-          {registerError && <p className="text-red-400 text-sm text-center">{registerError}</p>}
+          {registerError && <p className="text-brand-secondary text-sm text-center">{registerError}</p>}
         </form>
       </div>
     </div>

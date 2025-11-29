@@ -152,11 +152,11 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Fecha</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Fecha</label>
             <input
               type="date"
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={date}
               onChange={e => setDate(e.target.value)}
             />
@@ -164,23 +164,23 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
         </div>
 
         {availableInstallments.length > 0 && (
-          <div className="border-t border-gray-700 pt-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Asignar a Cuotas (Opcional)</label>
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <label className="block text-sm font-medium text-text-secondary mb-2">Asignar a Cuotas (Opcional)</label>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {availableInstallments.map(inst => {
                 const monthlyPayment = inst.totalInstallments > 0 ? inst.totalAmount / inst.totalInstallments : 0;
                 return (
-                  <div key={inst.id} className="flex items-center justify-between gap-2 bg-gray-700/50 p-2 rounded">
+                  <div key={inst.id} className="flex items-center justify-between gap-2 bg-background/50 p-2 rounded">
                     <div className="flex-1">
-                      <p className="text-sm text-white">{inst.description}</p>
-                      <p className="text-xs text-gray-400">Cuota: {formatCurrency(monthlyPayment)}</p>
+                      <p className="text-sm text-text-primary">{inst.description}</p>
+                      <p className="text-xs text-text-secondary">Cuota: {formatCurrency(monthlyPayment)}</p>
                     </div>
                     <input
                       type="number"
                       min="0"
                       max={monthlyPayment}
                       step="0.01"
-                      className="w-24 bg-gray-800 border border-gray-600 text-white rounded-lg p-1 text-sm text-right"
+                      className="w-24 bg-surface border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-1 text-sm text-right"
                       value={installmentPayments[inst.id] || ''}
                       onChange={e => setInstallmentPayments({
                         ...installmentPayments,
@@ -192,7 +192,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
                 );
               })}
             </div>
-            <div className="mt-2 text-xs text-gray-400">
+            <div className="mt-2 text-xs text-text-secondary">
               Total asignado a cuotas: {formatCurrency(totalInstallmentPayments)}
               {remainingForSpot > 0 && (
                 <span className="block mt-1">Restante para pago spot: {formatCurrency(remainingForSpot)}</span>
@@ -203,7 +203,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
 
         <button
           type="submit"
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
+          className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
         >
           Registrar Pago
         </button>

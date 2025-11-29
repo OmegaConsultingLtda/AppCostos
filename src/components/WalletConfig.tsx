@@ -155,45 +155,45 @@ export default function WalletConfig() {
     <div className="space-y-6">
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Billeteras</h2>
+          <h2 className="text-xl font-bold text-text-primary">Billeteras</h2>
           <button
             onClick={handleAddWallet}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+            className="bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <FaPlus /> Nueva Billetera
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-700 text-gray-300 text-sm uppercase tracking-wider">
+                <tr className="bg-background text-text-secondary text-sm uppercase tracking-wider border-b border-gray-200 dark:border-gray-800">
                   <th className="p-3 font-semibold">Nombre</th>
                   <th className="p-3 font-semibold text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {appState.wallets.map(wallet => (
-                  <tr key={wallet.id} className="hover:bg-gray-700/50 transition-colors">
-                    <td className="p-3 font-medium text-white flex items-center gap-2">
-                      <FaWallet className="text-indigo-400" />
+                  <tr key={wallet.id} className="hover:bg-background/50 transition-colors">
+                    <td className="p-3 font-medium text-text-primary flex items-center gap-2">
+                      <FaWallet className="text-brand-primary" />
                       {wallet.name}
                       {wallet.id === appState.currentWalletId && (
-                        <span className="text-xs bg-indigo-600 text-white px-2 py-1 rounded-full">Activa</span>
+                        <span className="text-xs bg-brand-primary text-white px-2 py-1 rounded-full">Activa</span>
                       )}
                     </td>
                     <td className="p-3 text-center space-x-2">
                       <button
                         onClick={() => handleEditWallet(wallet)}
-                        className="text-yellow-400 hover:text-yellow-300"
+                        className="text-brand-primary hover:text-brand-primary/80"
                       >
                         <FaEdit />
                       </button>
                       {appState.wallets.length > 1 && (
                         <button
                           onClick={() => handleDeleteWallet(wallet.id)}
-                          className="text-red-500 hover:text-red-400"
+                          className="text-brand-secondary hover:text-brand-secondary/80"
                         >
                           <FaTrash />
                         </button>
@@ -209,41 +209,41 @@ export default function WalletConfig() {
 
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Tarjetas de Crédito</h2>
+          <h2 className="text-xl font-bold text-text-primary">Tarjetas de Crédito</h2>
           <button
             onClick={handleAddCard}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+            className="bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <FaPlus /> Nueva Tarjeta
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-surface rounded-lg shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-700 text-gray-300 text-sm uppercase tracking-wider">
+                <tr className="bg-background text-text-secondary text-sm uppercase tracking-wider">
                   <th className="p-3 font-semibold">Nombre</th>
                   <th className="p-3 font-semibold text-right">Límite</th>
                   <th className="p-3 font-semibold text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {currentWallet.creditCards && currentWallet.creditCards.length > 0 ? (
                   currentWallet.creditCards.map(card => (
-                    <tr key={card.id} className="hover:bg-gray-700/50 transition-colors">
-                      <td className="p-3 font-medium text-white">{card.name}</td>
-                      <td className="p-3 text-right text-gray-300">{formatCurrency(card.limit)}</td>
+                    <tr key={card.id} className="hover:bg-background/50 transition-colors">
+                      <td className="p-3 font-medium text-text-primary">{card.name}</td>
+                      <td className="p-3 text-right text-text-secondary">{formatCurrency(card.limit)}</td>
                       <td className="p-3 text-center space-x-2">
                         <button
                           onClick={() => handleEditCard(card)}
-                          className="text-yellow-400 hover:text-yellow-300"
+                          className="text-brand-primary hover:text-brand-primary/80"
                         >
                           <FaEdit />
                         </button>
                         <button
                           onClick={() => handleDeleteCard(card.id)}
-                          className="text-red-500 hover:text-red-400"
+                          className="text-brand-secondary hover:text-brand-secondary/80"
                         >
                           <FaTrash />
                         </button>
@@ -252,7 +252,7 @@ export default function WalletConfig() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="p-8 text-center text-gray-500">No hay tarjetas registradas.</td>
+                    <td colSpan={3} className="p-8 text-center text-text-secondary">No hay tarjetas registradas.</td>
                   </tr>
                 )}
               </tbody>
@@ -268,18 +268,18 @@ export default function WalletConfig() {
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSaveWallet(); }} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Nombre</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Nombre</label>
             <input
               type="text"
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={walletFormData.name}
               onChange={e => setWalletFormData({ name: e.target.value })}
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
+            className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
           >
             {editingWallet ? 'Guardar Cambios' : 'Crear Billetera'}
           </button>
@@ -293,29 +293,29 @@ export default function WalletConfig() {
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSaveCard(); }} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Nombre</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Nombre</label>
             <input
               type="text"
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={cardFormData.name}
               onChange={e => setCardFormData({ ...cardFormData, name: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Límite</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Límite</label>
             <input
               type="number"
               required
               min="0"
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={cardFormData.limit}
               onChange={e => setCardFormData({ ...cardFormData, limit: e.target.value })}
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
+            className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
           >
             {editingCard ? 'Guardar Cambios' : 'Agregar Tarjeta'}
           </button>

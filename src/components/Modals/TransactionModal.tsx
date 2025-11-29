@@ -100,22 +100,22 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Monto</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Monto</label>
             <input
               type="number"
               required
               min="0"
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={amount}
               onChange={e => setAmount(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Fecha</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Fecha</label>
             <input
               type="date"
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={date}
               onChange={e => setDate(e.target.value)}
             />
@@ -123,9 +123,9 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Tipo</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
           <select
-            className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
             value={type}
             onChange={e => setType(e.target.value as TransactionType)}
           >
@@ -137,10 +137,10 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
 
         {type === 'expense_credit' && (
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Tarjeta de Crédito</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Tarjeta de Crédito</label>
             <select
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={cardId || ''}
               onChange={e => setCardId(Number(e.target.value))}
             >
@@ -154,10 +154,10 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Categoría</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Categoría</label>
             <select
               required
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={category}
               onChange={e => {
                 setCategory(e.target.value);
@@ -171,9 +171,9 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Subcategoría</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Subcategoría</label>
             <select
-              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 focus:outline-none focus:border-brand-accent"
               value={subcategory}
               onChange={e => setSubcategory(e.target.value)}
               disabled={!category || subcategoryList.length === 0}
@@ -188,7 +188,7 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
 
         <button
           type="submit"
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
+          className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4"
         >
           {transactionToEdit ? 'Guardar Cambios' : 'Agregar Movimiento'}
         </button>

@@ -34,16 +34,16 @@ export default function Header() {
   return (
     <header className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
       <div className="w-full md:w-auto text-center md:text-left">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Panel de Control Financiero</h1>
-        <p className="text-gray-400">Herramienta de análisis y optimización para tus finanzas.</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Panel de Control Financiero</h1>
+        <p className="text-text-secondary">Herramienta de análisis y optimización para tus finanzas.</p>
       </div>
       
-      <div className="flex flex-wrap items-center justify-center gap-4 bg-gray-800 p-3 rounded-lg w-full md:w-auto shadow-md">
+      <div className="flex flex-wrap items-center justify-center gap-4 bg-surface p-3 rounded-lg w-full md:w-auto shadow-md">
         <div className="flex items-center gap-2">
-          <label htmlFor="walletSelector" className="text-sm font-medium text-gray-300">Billetera:</label>
+          <label htmlFor="walletSelector" className="text-sm font-medium text-text-secondary">Billetera:</label>
           <select 
             id="walletSelector" 
-            className="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
+            className="bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 text-sm focus:outline-none focus:border-brand-accent"
             value={appState.currentWalletId}
             onChange={handleWalletChange}
           >
@@ -53,13 +53,13 @@ export default function Header() {
           </select>
         </div>
         
-        <div className="hidden sm:block border-l border-gray-600 h-6"></div>
+        <div className="hidden sm:block border-l border-gray-200 dark:border-gray-700 h-6"></div>
         
         <div className="flex items-center gap-2">
-          <label htmlFor="monthSelector" className="text-sm font-medium text-gray-300">Período:</label>
+          <label htmlFor="monthSelector" className="text-sm font-medium text-text-secondary">Período:</label>
           <select 
             id="monthSelector" 
-            className="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
+            className="bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 text-sm focus:outline-none focus:border-brand-accent"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
           >
@@ -69,7 +69,7 @@ export default function Header() {
           </select>
           <select 
             id="yearSelector" 
-            className="bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
+            className="bg-background border border-gray-200 dark:border-gray-700 text-text-primary rounded-lg p-2 text-sm focus:outline-none focus:border-brand-accent"
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
           >
@@ -79,11 +79,11 @@ export default function Header() {
           </select>
         </div>
         
-        <div className="hidden sm:block border-l border-gray-600 h-6"></div>
+        <div className="hidden sm:block border-l border-gray-200 dark:border-gray-700 h-6"></div>
         
         <button 
           onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 text-sm transition-colors"
+          className="bg-brand-secondary hover:bg-brand-secondary/90 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 text-sm transition-colors"
         >
           <FaSignOutAlt />
           <span className="hidden sm:inline">Cerrar Sesión</span>

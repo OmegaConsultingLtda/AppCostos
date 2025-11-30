@@ -19,7 +19,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-gray-900 text-white">Cargando...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background text-text-primary">Cargando...</div>;
   }
 
   if (!user) {
@@ -27,36 +27,34 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <Header />
+    <div className="flex flex-col min-h-screen bg-background">
+      {isQAEnvironment() && (
+        <div className="w-full bg-red-600 text-white text-center font-bold py-1 px-4 text-sm">
+          Ambiente QA
+        </div>
+      )}
+      
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
         
-        <div className="flex flex-col md:flex-row gap-8">
-          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-          
-          <main className="flex-1 min-w-0">
-            {activeTab === 'dashboard' && (
-              <>
-                <Dashboard />
-                {isQAEnvironment() && (
-                  <div className="mt-6">
-                    <QATools />
-                  </div>
-                )}
-              </>
-            )}
-            {activeTab === 'transactions' && <TransactionList />}
-            {activeTab === 'debts' && <Installments />}
-            {activeTab === 'budgets' && <Budgets />}
-            {activeTab === 'investments' && <div className="text-white">Investments Content</div>}
-            {activeTab === 'settings' && (
-              <div className="space-y-6">
-                <Settings />
-                <WalletConfig />
-                {isQAEnvironment() && <QATools />}
-              </div>
-            )}
-          </main>
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
+          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            <Header />
+            
+            <main className="mt-4">
+              {activeTab === 'dashboard' && <Dashboard />}
+              {activeTab === 'transactions' && <TransactionList />}
+              {activeTab === 'debts' && <Installments />}
+              {activeTab === 'budgets' && <Budgets />}
+              {activeTab === 'settings' && (
+                <div className="space-y-6">
+                  <Settings />
+                  <WalletConfig />
+                </div>
+              )}
+              {activeTab === 'qa-tools' && isQAEnvironment() && <QATools />}
+            </main>
+          </div>
         </div>
       </div>
     </div>

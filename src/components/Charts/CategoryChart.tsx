@@ -8,73 +8,72 @@ import { useTheme } from 'next-themes';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+// --- Funciones auxiliares (FUERA del componente) ---
+
+// Función para interpolar colores
+const interpolateColor = (color1: string, color2: string, factor: number) => {
+  const r1 = parseInt(color1.substring(1, 3), 16);
+  const g1 = parseInt(color1.substring(3, 5), 16);
+  const b1 = parseInt(color1.substring(5, 7), 16);
+
+  const r2 = parseInt(color2.substring(1, 3), 16);
+  const g2 = parseInt(color2.substring(3, 5), 16);
+  const b2 = parseInt(color2.substring(5, 7), 16);
+
+  const r = Math.round(r1 + factor * (r2 - r1));
+  const g = Math.round(g1 + factor * (g2 - g1));
+  const b = Math.round(b1 + factor * (b2 - b1));
+
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+};
+
+// Función para generar la paleta
+const generatePalette = (count: number) => {
+  const baseColors = [
+    '#292421', // Black
+    '#A75F37', // Copper
+    '#CA8E82', // Pink
+    '#D9B99F', // Tan
+    '#F2D6CE', // Blush
+    '#F2E7DD', // Vanilla
+    '#7A958F', // Green
+    '#BAE0DA', // Mint
+  ];
+
+  if (count <= baseColors.length) {
+    return baseColors.slice(0, count);
+  }
+
+  const palette: string[] = [];
+  let extrasNeeded = count - baseColors.length;
+
+  for (let i = 0; i < baseColors.length - 1; i++) {
+    palette.push(baseColors[i]);
+    
+    if (extrasNeeded > 0) {
+      const newColor = interpolateColor(baseColors[i], baseColors[i + 1], 0.5);
+      palette.push(newColor);
+      extrasNeeded--;
+    }
+  }
+  
+  palette.push(baseColors[baseColors.length - 1]);
+
+  while (extrasNeeded > 0) {
+     palette.push(baseColors[baseColors.length - 1]); 
+     extrasNeeded--;
+  }
+  
+  return palette;
+};
+
+// --- Componente Principal ---
+
 export default function CategoryChart() {
   const { currentWallet, selectedMonth, selectedYear } = useWallet();
   const { resolvedTheme } = useTheme();
 
   const isDark = resolvedTheme === 'dark';
-
-  // Helper to interpolate colors
-  const interpolateColor = (color1: string, color2: string, factor: number) => {
-    const r1 = parseInt(color1.substring(1, 3), 16);
-    const g1 = parseInt(color1.substring(3, 5), 16);
-    const b1 = parseInt(color1.substring(5, 7), 16);
-
-    const r2 = parseInt(color2.substring(1, 3), 16);
-    const g2 = parseInt(color2.substring(3, 5), 16);
-    const b2 = parseInt(color2.substring(5, 7), 16);
-
-    const r = Math.round(r1 + factor * (r2 - r1));
-    const g = Math.round(g1 + factor * (g2 - g1));
-    const b = Math.round(b1 + factor * (b2 - b1));
-
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-  };
-
-  const generatePalette = (count: number) => {
-    const baseColors = [
-      '#292421', // Black
-      '#A75F37', // Copper
-      '#CA8E82', // Pink
-      '#D9B99F', // Tan
-      '#F2D6CE', // Blush
-      '#F2E7DD', // Vanilla
-      '#7A958F', // Green
-      '#BAE0DA', // Mint
-    ];
-
-    if (count <= baseColors.length) {
-      return baseColors.slice(0, count);
-    }
-
-    const palette: string[] = [];
-    let extrasNeeded = count - baseColors.length;
-
-    // Interleave new colors between base colors
-    for (let i = 0; i < baseColors.length - 1; i++) {
-      palette.push(baseColors[i]);
-      
-      if (extrasNeeded > 0) {
-        // Create a new color between current and next
-        const newColor = interpolateColor(baseColors[i], baseColors[i + 1], 0.5);
-        palette.push(newColor);
-        extrasNeeded--;
-      }
-    }
-    
-    // Add the last base color
-    palette.push(baseColors[baseColors.length - 1]);
-
-    // If we still need more colors (more than 15 categories), 
-    // we append them by interpolating the last color with the first (circular) or just repeating
-    // For now, let's just repeat the last color to avoid errors, or loop back.
-    while (extrasNeeded > 0) {
-       palette.push(baseColors[baseColors.length - 1]); 
-       extrasNeeded--;
-    }
-    
-    return palette;
-  };
 
   const data = useMemo(() => {
     if (!currentWallet) return { labels: [], datasets: [] };
@@ -153,3 +152,4 @@ export default function CategoryChart() {
     </div>
   );
 }
+// --- FIN DEL ARCHIVO ---

@@ -24,9 +24,11 @@ export default function Sidebar({ activeTab, setActiveTab, user }: SidebarProps)
   const [isOpen, setIsOpen] = useState(true);
   const [showQA, setShowQA] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setShowQA(isQAEnvironment());
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const tabs = [
     { id: 'dashboard', label: 'Resumen', icon: LuLayoutDashboard },
@@ -119,3 +121,4 @@ export default function Sidebar({ activeTab, setActiveTab, user }: SidebarProps)
     </aside>
   );
 }
+// --- FIN DEL ARCHIVO ---

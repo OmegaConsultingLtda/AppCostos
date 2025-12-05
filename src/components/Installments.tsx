@@ -24,6 +24,17 @@ export default function Installments() {
     return currentWallet.installments || [];
   }, [currentWallet]);
 
+  // MOVIDO: Cálculo de totales antes del return para cumplir reglas de Hooks
+  const totals = useMemo(() => {
+    return installments.reduce((acc, item) => {
+      const monthly = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+      const remaining = monthly * (item.totalInstallments - (item.paidInstallments || 0));
+      acc.monthly += monthly;
+      acc.remaining += remaining;
+      return acc;
+    }, { monthly: 0, remaining: 0 });
+  }, [installments]);
+
   const updateWallet = (updater: (wallet: Wallet) => Wallet) => {
     if (!currentWallet) return;
     const updatedWallets = appState.wallets.map(w => {
@@ -72,16 +83,16 @@ export default function Installments() {
     };
 
     updateWallet(wallet => {
-      const installments = [...(wallet.installments || [])];
+      const installmentsList = [...(wallet.installments || [])];
       if (editingInstallment) {
-        const index = installments.findIndex(i => i.id === editingInstallment.id);
+        const index = installmentsList.findIndex(i => i.id === editingInstallment.id);
         if (index >= 0) {
-          installments[index] = installment;
+          installmentsList[index] = installment;
         }
       } else {
-        installments.push(installment);
+        installmentsList.push(installment);
       }
-      return { ...wallet, installments };
+      return { ...wallet, installments: installmentsList };
     });
 
     setIsModalOpen(false);
@@ -102,14 +113,14 @@ export default function Installments() {
     const isPaid = !!paymentHistory[periodKey];
     const isLocked = paymentHistory[periodKey]?.transactionId ? true : false;
 
-    if (isLocked) return; // Can't toggle if locked by transaction
+    if (isLocked) return; 
 
     updateWallet(wallet => {
-      const installments = [...(wallet.installments || [])];
-      const index = installments.findIndex(i => i.id === installment.id);
+      const installmentsList = [...(wallet.installments || [])];
+      const index = installmentsList.findIndex(i => i.id === installment.id);
       if (index < 0) return wallet;
 
-      const updated = { ...installments[index] };
+      const updated = { ...installmentsList[index] };
       updated.paymentHistory = { ...paymentHistory };
 
       if (isPaid) {
@@ -123,24 +134,14 @@ export default function Installments() {
         updated.paidInstallments = (updated.paidInstallments || 0) + 1;
       }
 
-      installments[index] = updated;
-      return { ...wallet, installments };
+      installmentsList[index] = updated;
+      return { ...wallet, installments: installmentsList };
     });
   };
 
   if (!currentWallet) {
     return <div className="text-gray-400">Selecciona una billetera para ver las cuotas.</div>;
   }
-
-  const totals = useMemo(() => {
-    return installments.reduce((acc, item) => {
-      const monthly = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
-      const remaining = monthly * (item.totalInstallments - (item.paidInstallments || 0));
-      acc.monthly += monthly;
-      acc.remaining += remaining;
-      return acc;
-    }, { monthly: 0, remaining: 0 });
-  }, [installments]);
 
   return (
     <div className="space-y-4">
@@ -321,4 +322,4 @@ export default function Installments() {
     </div>
   );
 }
-
+// --- FIN DEL ARCHIVO ---

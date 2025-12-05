@@ -24,7 +24,7 @@ This is the modern version of App Costos, migrated from a Vanilla JS application
 1.  **Install dependencies:**
 
     ```bash
-    npm install
+    pnpm install
     ```
 
 2.  **Configure Environment Variables:**
@@ -43,7 +43,7 @@ This is the modern version of App Costos, migrated from a Vanilla JS application
 3.  **Run the development server:**
 
     ```bash
-    npm run dev
+    pnpm dev
     ```
 
     Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

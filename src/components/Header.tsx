@@ -2,8 +2,6 @@
 
 import React from 'react';
 import { useWallet } from '@/context/WalletContext';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { FaSignOutAlt } from 'react-icons/fa';
 
 export default function Header() {
@@ -28,7 +26,13 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    signOut(auth);
+    // Firebase removed: temporary "logout" clears local saved state.
+    try {
+      window.localStorage.removeItem('appcostos:appState');
+    } catch {
+      // ignore
+    }
+    window.location.reload();
   };
 
   return (

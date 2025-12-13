@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   LuLayoutDashboard, 
   LuList, 
@@ -11,22 +11,18 @@ import {
   LuTestTube
 } from 'react-icons/lu';
 import clsx from 'clsx';
-import { User } from 'firebase/auth';
+import type { AppUser } from '@/context/WalletContext';
 import { isQAEnvironment } from '@/utils/env';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  user: User;
+  user: AppUser;
 }
 
 export default function Sidebar({ activeTab, setActiveTab, user }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
-  const [showQA, setShowQA] = useState(false);
-
-  useEffect(() => {
-    setShowQA(isQAEnvironment());
-  }, []);
+  const showQA = isQAEnvironment();
 
   const tabs = [
     { id: 'dashboard', label: 'Resumen', icon: LuLayoutDashboard },

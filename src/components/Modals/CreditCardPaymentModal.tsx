@@ -19,6 +19,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
   const [description, setDescription] = useState('');
   const [installmentPayments, setInstallmentPayments] = useState<{ [installmentId: number]: number | string }>({});
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isOpen && currentWallet) {
       setSelectedCardId(currentWallet.creditCards?.[0]?.id || '');
@@ -28,6 +29,7 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
       setInstallmentPayments({});
     }
   }, [isOpen, currentWallet]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = async () => {
     if (!currentWallet || !selectedCardId || !amount) return;
@@ -51,10 +53,10 @@ export default function CreditCardPaymentModal({ isOpen, onClose }: CreditCardPa
     const updatedWallets = appState.wallets.map(w => {
       if (w.id !== currentWallet.id) return w;
 
-      let transactions = [...w.transactions];
+      const transactions = [...w.transactions];
       transactions.push(newTransaction);
 
-      let installments = [...(w.installments || [])];
+      const installments = [...(w.installments || [])];
       const paidInstallmentIds: number[] = [];
 
       Object.entries(installmentPayments).forEach(([instId, instAmount]) => {

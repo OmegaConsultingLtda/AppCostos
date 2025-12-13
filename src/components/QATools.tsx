@@ -94,7 +94,7 @@ const getSeedData = () => ({
 });
 
 export default function QATools() {
-  const { appState, setAppState, saveData, currentWallet, selectedMonth, selectedYear } = useWallet();
+  const { appState, setAppState, saveData, currentWallet } = useWallet();
 
   const handleLoadSeedData = () => {
     if (!confirm("¿Seguro que quieres sobreescribir TUS DATOS con los datos de prueba? Esta acción no se puede deshacer.")) {
@@ -104,7 +104,7 @@ export default function QATools() {
     const seedData = getSeedData();
     setAppState(seedData);
     void saveData(seedData);
-    alert("Datos de prueba cargados y guardados en Firestore.");
+    alert("Datos de prueba cargados y guardados (temporary local mode).");
   };
 
   const handleCopyPreviousMonth = () => {

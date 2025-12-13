@@ -1,10 +1,22 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
 import { AppState, Wallet } from '@/types';
+
+export type AppUser = {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+};
+
+// Temporary local-only mode while migrating from Firebase -> Supabase.
+const LOCAL_USER: AppUser = {
+  uid: 'local',
+  email: 'local@appcostos.dev',
+  displayName: 'Local User',
+};
+
+const LOCAL_STORAGE_KEY = 'appcostos:appState';
 
 const defaultData: AppState = {
   wallets: [
@@ -47,7 +59,7 @@ type SortDirection = 'asc' | 'desc';
 type TransactionFilter = 'all' | 'income' | 'expense';
 
 interface WalletContextType {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
@@ -70,7 +82,7 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [appState, setAppState] = useState<AppState>(defaultData);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -81,55 +93,31 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [currentFilter, setCurrentFilter] = useState<TransactionFilter>('all');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) {
-        setAppState(defaultData);
-        setLoading(false);
+    // Firebase removed: initialize a local user and load state from localStorage.
+    try {
+      const stored = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<AppState>;
+        setAppState(() => ({
+          ...defaultData,
+          ...parsed,
+          wallets: Array.isArray(parsed.wallets) ? (parsed.wallets as AppState['wallets']) : defaultData.wallets,
+        }));
       }
-    });
-    return () => unsubscribe();
+    } catch (error) {
+      console.warn('Failed to read app state from localStorage:', error);
+    } finally {
+      setUser(LOCAL_USER);
+      setLoading(false);
+    }
   }, []);
 
-  const getAppDocRef = (userId: string) => doc(db, 'users', userId, 'appData', 'main');
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!user) return;
-
-    setLoading(true);
-    const docRef = getAppDocRef(user.uid);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as AppState;
-        // Ensure we merge with default structure to avoid missing fields if schema changes
-        setAppState(() => ({
-            ...defaultData,
-            ...data,
-            wallets: data.wallets || defaultData.wallets
-        }));
-      } else {
-        // Initialize new user with default data
-        void setDoc(docRef, defaultData);
-        setAppState(defaultData);
-      }
-      setLoading(false);
-    }, (error) => {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
   const saveData = async (newData: AppState) => {
-    if (!user) return;
     try {
-      await setDoc(getAppDocRef(user.uid), newData, { merge: true });
-      // State update happens via onSnapshot
+      setAppState(newData);
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newData));
     } catch (error) {
-      console.error("Error saving data:", error);
+      console.error("Error saving data (local mode):", error);
     }
   };
 

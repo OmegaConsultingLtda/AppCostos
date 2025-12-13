@@ -24,6 +24,16 @@ export default function Installments() {
     return currentWallet.installments || [];
   }, [currentWallet]);
 
+  const totals = useMemo(() => {
+    return installments.reduce((acc, item) => {
+      const monthly = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
+      const remaining = monthly * (item.totalInstallments - (item.paidInstallments || 0));
+      acc.monthly += monthly;
+      acc.remaining += remaining;
+      return acc;
+    }, { monthly: 0, remaining: 0 });
+  }, [installments]);
+
   const updateWallet = (updater: (wallet: Wallet) => Wallet) => {
     if (!currentWallet) return;
     const updatedWallets = appState.wallets.map(w => {
@@ -131,16 +141,6 @@ export default function Installments() {
   if (!currentWallet) {
     return <div className="text-gray-400">Selecciona una billetera para ver las cuotas.</div>;
   }
-
-  const totals = useMemo(() => {
-    return installments.reduce((acc, item) => {
-      const monthly = item.totalInstallments > 0 ? item.totalAmount / item.totalInstallments : 0;
-      const remaining = monthly * (item.totalInstallments - (item.paidInstallments || 0));
-      acc.monthly += monthly;
-      acc.remaining += remaining;
-      return acc;
-    }, { monthly: 0, remaining: 0 });
-  }, [installments]);
 
   return (
     <div className="space-y-4">

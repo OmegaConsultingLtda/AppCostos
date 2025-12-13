@@ -16,6 +16,10 @@ export function isProduction(): boolean {
 }
 
 export function isQAEnvironment(): boolean {
-  return process.env.NEXT_PUBLIC_ENV === 'qa';
+  // Keep the old developer-friendly behavior: local dev defaults to QA tools enabled,
+  // unless the developer explicitly sets NEXT_PUBLIC_ENV to "production".
+  if (process.env.NEXT_PUBLIC_ENV === 'qa') return true;
+  if (process.env.NEXT_PUBLIC_ENV === 'production') return false;
+  return process.env.NODE_ENV === 'development';
 }
 

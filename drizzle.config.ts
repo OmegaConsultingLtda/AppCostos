@@ -12,4 +12,3 @@ export default {
   verbose: true,
 } satisfies Config;
 
-

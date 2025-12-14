@@ -1,10 +1,17 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Wallet } from '@/types';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { usePathname } from 'next/navigation';
+
+export type AppUser = {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+};
+
+const LOCAL_STORAGE_KEY_PREFIX = 'appcostos:appState';
 
 const defaultData: AppState = {
   wallets: [
@@ -47,7 +54,7 @@ type SortDirection = 'asc' | 'desc';
 type TransactionFilter = 'all' | 'income' | 'expense';
 
 interface WalletContextType {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
@@ -70,7 +77,7 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [appState, setAppState] = useState<AppState>(defaultData);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -80,56 +87,110 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [currentFilter, setCurrentFilter] = useState<TransactionFilter>('all');
 
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const pathname = usePathname();
+  const didInit = useRef(false);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) {
-        setAppState(defaultData);
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+    let cancelled = false;
 
-  const getAppDocRef = (userId: string) => doc(db, 'users', userId, 'appData', 'main');
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!user) return;
-
-    setLoading(true);
-    const docRef = getAppDocRef(user.uid);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as AppState;
-        // Ensure we merge with default structure to avoid missing fields if schema changes
+    const loadStateForUser = (uid: string) => {
+      const key = `${LOCAL_STORAGE_KEY_PREFIX}:${uid}`;
+      try {
+        const stored = window.localStorage.getItem(key);
+        if (!stored) {
+          setAppState(defaultData);
+          return;
+        }
+        const parsed = JSON.parse(stored) as Partial<AppState>;
         setAppState(() => ({
-            ...defaultData,
-            ...data,
-            wallets: data.wallets || defaultData.wallets
+          ...defaultData,
+          ...parsed,
+          wallets: Array.isArray(parsed.wallets)
+            ? (parsed.wallets as AppState['wallets'])
+            : defaultData.wallets,
         }));
-      } else {
-        // Initialize new user with default data
-        void setDoc(docRef, defaultData);
+      } catch (error) {
+        console.warn('Failed to read app state from localStorage:', error);
         setAppState(defaultData);
       }
-      setLoading(false);
-    }, (error) => {
-        console.error("Error fetching data:", error);
-        setLoading(false);
+    };
+
+    const mapAuthUser = (authUser: { id: string; email?: string | null; user_metadata?: any }) => {
+      const displayName =
+        authUser.user_metadata?.full_name ??
+        authUser.user_metadata?.name ??
+        authUser.email ??
+        null;
+      return { uid: authUser.id, email: authUser.email ?? null, displayName } satisfies AppUser;
+    };
+
+    const refreshUser = async (silent: boolean) => {
+      if (!silent && !didInit.current) setLoading(true);
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (error || !data.user) {
+          setUser(null);
+          setAppState(defaultData);
+          return;
+        }
+        const mapped = mapAuthUser(data.user);
+        setUser(mapped);
+        loadStateForUser(mapped.uid);
+      } finally {
+        if (!cancelled && !didInit.current) {
+          setLoading(false);
+          didInit.current = true;
+        }
+      }
+    };
+
+    // Initial load (not silent)
+    void refreshUser(false);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      const authUser = session?.user;
+      if (!authUser) {
+        setUser(null);
+        setAppState(defaultData);
+        return;
+      }
+      const mapped = mapAuthUser(authUser);
+      setUser(mapped);
+      loadStateForUser(mapped.uid);
     });
 
-    return () => unsubscribe();
-  }, [user]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+    return () => {
+      cancelled = true;
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    // When navigation happens (e.g. /login -> / via Server Action redirect),
+    // the browser Supabase client doesn't emit onAuthStateChange (it didn't perform the login).
+    // Re-check the session so the app doesn't get stuck with user=null until a full refresh.
+    void (async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return;
+      const displayName =
+        data.user.user_metadata?.full_name ??
+        data.user.user_metadata?.name ??
+        data.user.email ??
+        null;
+      setUser({ uid: data.user.id, email: data.user.email ?? null, displayName });
+    })();
+  }, [pathname, supabase]);
 
   const saveData = async (newData: AppState) => {
-    if (!user) return;
     try {
-      await setDoc(getAppDocRef(user.uid), newData, { merge: true });
-      // State update happens via onSnapshot
+      setAppState(newData);
+      const key = user?.uid ? `${LOCAL_STORAGE_KEY_PREFIX}:${user.uid}` : LOCAL_STORAGE_KEY_PREFIX;
+      window.localStorage.setItem(key, JSON.stringify(newData));
     } catch (error) {
-      console.error("Error saving data:", error);
+      console.error('Error saving data:', error);
     }
   };
 

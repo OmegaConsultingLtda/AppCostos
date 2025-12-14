@@ -8,9 +8,8 @@ import { useTheme } from 'next-themes';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// --- Funciones auxiliares (FUERA del componente) ---
-
-// Función para interpolar colores
+// --- Funciones auxiliares (fuera del componente) ---
+// Interpolar colores
 const interpolateColor = (color1: string, color2: string, factor: number) => {
   const r1 = parseInt(color1.substring(1, 3), 16);
   const g1 = parseInt(color1.substring(3, 5), 16);
@@ -27,7 +26,7 @@ const interpolateColor = (color1: string, color2: string, factor: number) => {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
 
-// Función para generar la paleta
+// Generar paleta de colores
 const generatePalette = (count: number) => {
   const baseColors = [
     '#292421', // Black
@@ -47,28 +46,28 @@ const generatePalette = (count: number) => {
   const palette: string[] = [];
   let extrasNeeded = count - baseColors.length;
 
+  // Intercalar nuevos colores entre los colores base
   for (let i = 0; i < baseColors.length - 1; i++) {
     palette.push(baseColors[i]);
-    
+
     if (extrasNeeded > 0) {
       const newColor = interpolateColor(baseColors[i], baseColors[i + 1], 0.5);
       palette.push(newColor);
       extrasNeeded--;
     }
   }
-  
+
+  // Agregar el último color base
   palette.push(baseColors[baseColors.length - 1]);
 
+  // Si aún faltan colores, repetir el último para evitar errores.
   while (extrasNeeded > 0) {
-     palette.push(baseColors[baseColors.length - 1]); 
-     extrasNeeded--;
+    palette.push(baseColors[baseColors.length - 1]);
+    extrasNeeded--;
   }
-  
+
   return palette;
 };
-
-// --- Componente Principal ---
-
 export default function CategoryChart() {
   const { currentWallet, selectedMonth, selectedYear } = useWallet();
   const { resolvedTheme } = useTheme();

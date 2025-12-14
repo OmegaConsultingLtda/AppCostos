@@ -104,7 +104,7 @@ export default function QATools() {
     const seedData = getSeedData();
     setAppState(seedData);
     void saveData(seedData);
-    alert("Datos de prueba cargados y guardados en Firestore.");
+    alert("Datos de prueba cargados y guardados (temporary local mode).");
   };
 
   const handleCopyPreviousMonth = () => {

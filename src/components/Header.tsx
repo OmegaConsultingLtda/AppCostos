@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { useWallet } from '@/context/WalletContext';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { FaSignOutAlt } from 'react-icons/fa';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export default function Header() {
   const { 
+    user,
     appState, 
     setAppState, 
     selectedMonth, 
@@ -27,8 +27,20 @@ export default function Header() {
     setAppState(prev => ({ ...prev, currentWalletId: Number(e.target.value) }));
   };
 
-  const handleLogout = () => {
-    signOut(auth);
+  const handleLogout = async () => {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+
+    // Optional: clear cached local state for current user
+    try {
+      if (user?.uid) {
+        window.localStorage.removeItem(`appcostos:appState:${user.uid}`);
+      }
+    } catch {
+      // ignore
+    }
+
+    window.location.href = '/login';
   };
 
   return (

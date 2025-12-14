@@ -22,6 +22,7 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [cardId, setCardId] = useState<number | undefined>(undefined);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentWallet) return;
+    setSubmitError(null);
 
     const newTransaction: Transaction = {
       id: transactionToEdit ? transactionToEdit.id : Date.now(),
@@ -60,6 +62,32 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
       subcategory: subcategory || null,
       cardId: type === 'expense_credit' ? Number(cardId) : undefined,
     };
+
+    // Persist to Supabase (best-effort). If it fails, show the error and do not close.
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          description: newTransaction.description,
+          amount: newTransaction.amount,
+          date: newTransaction.date,
+          type: newTransaction.type,
+          category: newTransaction.category,
+          subcategory: newTransaction.subcategory,
+          cardId: newTransaction.cardId ?? null,
+        }),
+      });
+
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setSubmitError(json.error ?? 'No se pudo guardar en la base de datos.');
+        return;
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'No se pudo guardar en la base de datos.');
+      return;
+    }
 
     const updatedWallets = appState.wallets.map(w => {
       if (w.id === currentWallet.id) {
@@ -87,6 +115,11 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit }:
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={transactionToEdit ? 'Editar Movimiento' : 'Nuevo Movimiento'}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {submitError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
+            {submitError}
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Descripción</label>
           <input

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useWallet } from "@/context/WalletContext";
-import AuthScreen from "@/components/AuthScreen";
 import Dashboard from "@/components/Dashboard";
 import TransactionList from "@/components/Transactions/TransactionList";
 import Header from "@/components/Header";
@@ -19,11 +18,19 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background text-text-primary">Cargando...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-text-primary">
+        Cargando...
+      </div>
+    );
   }
 
   if (!user) {
-    return <AuthScreen />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-text-primary">
+        Cargando sesión...
+      </div>
+    );
   }
 
   return (

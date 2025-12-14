@@ -2,15 +2,10 @@ import { login, signInWithGoogle, signup } from './actions';
 
 type Props = {
   // Next.js 16: `searchParams` puede llegar como Promise (Sync Dynamic APIs).
-  searchParams?:
-    | {
-        error?: string;
-        message?: string;
-      }
-    | Promise<{
-        error?: string;
-        message?: string;
-      }>;
+  searchParams?: Promise<{
+    error?: string;
+    message?: string;
+  }>;
 };
 
 function GoogleIcon() {
